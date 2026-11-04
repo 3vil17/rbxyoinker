@@ -1,0 +1,2100 @@
+<!doctype html>
+<!-- Copyright (C) 2026 3vil17. AGPL-3.0 with additional terms, see LICENSE and NOTICE.md. -->
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>rbxyoinker</title>
+<link rel="icon" type="image/png" href="/logo.png" />
+<style>
+  @import url("https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&display=swap");
+  :root {
+    color-scheme: dark;
+    --font-sans: 'Poppins', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    --green: #3bea57;
+    --red: #ec3b47;
+    --link: #2ba2f1;
+    --card-bg: rgba(28, 30, 32, 0.75);
+    --card-border: rgba(255, 255, 255, 0.08);
+  }
+  * { box-sizing: border-box; }
+  html {
+    background: rgb(22, 22, 22);
+    min-height: 100%;
+    font-family: var(--font-sans);
+    color: rgb(212, 212, 212);
+    scrollbar-width: thin;
+    scrollbar-color: rgba(255, 255, 255, 0.1) transparent;
+  }
+  html::-webkit-scrollbar { width: 6px; }
+  html::-webkit-scrollbar-track { background: transparent; }
+  html::-webkit-scrollbar-thumb { background: rgba(255, 255, 255, 0.1); border-radius: 99px; }
+  html::-webkit-scrollbar-thumb:hover { background: rgba(255, 255, 255, 0.18); }
+  body::before {
+    content: ""; position: fixed; inset: -50%; width: 200%; height: 200%;
+    background-image: radial-gradient(circle, rgba(255, 255, 255, 0.035) 1px, transparent 1px);
+    background-size: 22px 22px; transform: rotate(15deg); pointer-events: none; z-index: 1;
+  }
+  a:link, a:visited { color: var(--link); font-weight: 500; text-decoration: none; }
+  a:hover { opacity: 0.8; }
+
+  .card {
+    min-width: 0;
+    background: linear-gradient(var(--card-bg), var(--card-bg)) padding-box,
+      linear-gradient(180deg, rgba(255,255,255,0.12) 0%, rgba(255,255,255,0.04) 100%) border-box;
+    border: 1px solid transparent;
+    backdrop-filter: blur(14px);
+    border-radius: 8px;
+    padding: 16px;
+  }
+  h2.sect { margin: 0 0 12px; font-size: 0.85rem; font-weight: 600; color: rgb(170, 170, 170); }
+
+  .fgrid { display: grid; grid-template-columns: auto 1fr; gap: 10px 16px; align-items: center; }
+  .fgrid label { font-size: 0.78rem; color: rgb(144, 144, 144); white-space: nowrap; }
+  .frow { display: flex; align-items: center; gap: 8px; min-width: 0; }
+  .frow input { flex: 1 1 0; min-width: 0; max-width: none !important; }
+
+  .sep { height: 1px; background: var(--card-border); margin: 16px 0; }
+
+  nav button svg, h2.sect svg { width: 14px; height: 14px; stroke: currentColor; fill: none; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+  h2.sect { display: flex; align-items: center; gap: 7px; }
+  .btn svg { stroke-linecap: round; stroke-linejoin: round; }
+  textarea {
+    background: rgb(22, 22, 22); border: 1px solid rgba(255, 255, 255, 0.09); border-radius: 6px;
+    color: rgb(224, 224, 224); font-family: monospace; font-size: 12px; padding: 8px 12px; outline: none;
+    width: 100%; min-height: 110px; resize: vertical; transition: border-color 0.2s, background 0.2s;
+  }
+  textarea:hover { border-color: rgba(255, 255, 255, 0.2); }
+  textarea:focus { border-color: rgba(255, 255, 255, 0.22); background: rgba(255, 255, 255, 0.03); }
+  textarea::placeholder { color: rgb(85, 85, 85); }
+  .note .line { display: block; }
+  .nerd { margin-top: 6px; }
+  .nerd summary { cursor: pointer; font-size: 0.7rem; color: rgb(136,136,136); user-select: none; }
+  .nerd summary:hover { color: rgb(212,212,212); }
+  .nerd .raw { margin-top: 6px; padding: 8px 10px; border-radius: 6px; background: rgba(0,0,0,0.25);
+    font-family: monospace; font-size: 0.7rem; line-height: 1.6; color: rgb(170,170,170); word-break: break-word; }
+  .st.have { background: rgba(255,255,255,0.05); color: rgb(59,186,87); }
+  .badge.mod { background: rgba(236,59,71,0.12); color: rgb(208,96,112); margin-left: 4px; }
+  .badge.acc { margin-left: 4px; }
+  .badge.acc.pub { background: rgba(59,234,87,0.1); color: rgb(59,186,87); }
+  .seg { display: inline-flex; margin-top: 10px; border: 1px solid rgba(255,255,255,0.1); border-radius: 6px; overflow: hidden; }
+  .seg button { appearance: none; font-family: var(--font-sans); font-size: 12px; padding: 5px 12px; cursor: pointer; border: 0;
+    background: transparent; color: rgb(144,144,144); transition: 0.2s; }
+  .seg button + button { border-left: 1px solid rgba(255,255,255,0.1); }
+  .seg button.on { background: rgba(255,255,255,0.1); color: #fff; }
+  .seg button span { color: rgb(102,102,102); margin-left: 4px; }
+  .tag { font-size: 0.62rem; color: rgb(102,102,102); margin-left: 6px; }
+  .tag.pub { color: rgb(59,186,87); }
+  .chips { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px; }
+  .chips:empty { display: none; }
+  .chip { appearance: none; font-family: var(--font-sans); font-size: 12px; padding: 4px 10px; border-radius: 99px; cursor: pointer;
+    background: rgba(59,234,87,0.1); color: rgb(59,186,87); border: 1px solid rgba(59,234,87,0.25); transition: 0.2s; }
+  .chip.off { background: rgba(255,255,255,0.04); color: rgb(102,102,102); border-color: rgba(255,255,255,0.08); text-decoration: line-through; }
+  .rthumb { width: 32px; height: 32px; border-radius: 4px; object-fit: cover; flex-shrink: 0; background: rgb(22,22,22);
+    border: 1px solid rgba(255,255,255,0.08); }
+  .modal-bg { position: fixed; inset: 0; z-index: 10; background: rgba(0,0,0,0.6); display: flex; align-items: center;
+    justify-content: center; padding: 16px; }
+  .modal { max-width: 520px; width: 100%; background: linear-gradient(rgb(28,30,32), rgb(28,30,32)) padding-box,
+    linear-gradient(180deg, rgba(255,255,255,0.12) 0%, rgba(255,255,255,0.04) 100%) border-box; }
+  .modal ul { margin: 14px 0 0; padding-left: 18px; font-size: 0.82rem; line-height: 1.65; color: rgb(170,170,170); }
+  .modal li { margin-bottom: 6px; }
+  .modal li::marker { color: rgb(102,102,102); }
+  .modal code { background: rgba(255,255,255,0.07); border-radius: 4px; padding: 1px 5px; font-size: 0.78rem; color: rgb(212,212,212); }
+  .avatar { width: 30px; height: 30px; border-radius: 50%; background: rgb(40,40,40); object-fit: cover; flex-shrink: 0;
+    border: 1px solid rgba(255,255,255,0.1); }
+  .avatar.off { filter: grayscale(1); opacity: 0.5; }
+  .cklist { border: 1px solid rgba(255,255,255,0.09); border-radius: 6px; background: rgb(22,22,22); max-height: 260px; overflow-y: auto; scrollbar-width: thin; }
+  .ckrow { display: flex; align-items: center; gap: 10px; height: 34px; padding: 0 6px 0 10px; font-size: 0.75rem; }
+  .ckrow:nth-child(even) { background: rgba(255,255,255,0.025); }
+  .ckrow img { width: 20px; height: 20px; border-radius: 50%; object-fit: cover; flex-shrink: 0; background: rgb(40,40,40); }
+  .ckrow .n { color: rgb(224,224,224); min-width: 0; flex: 1 1 auto; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .ckrow .live { color: rgb(136,136,136); flex-shrink: 0; width: 64px; }
+  .ckrow .live .dot { width: 6px; height: 6px; }
+  .ckrow .tok { font-family: monospace; font-size: 0.7rem; color: rgb(102,102,102); flex-shrink: 0; }
+  .ckrow.dead img { filter: grayscale(1); opacity: 0.5; }
+  .ckrow.dead .n { color: rgb(136,136,136); }
+  .ckx { appearance: none; border: 0; background: transparent; color: rgb(102,102,102); cursor: pointer; width: 24px; height: 24px;
+    border-radius: 4px; display: inline-flex; align-items: center; justify-content: center; opacity: 0; transition: 0.15s; flex-shrink: 0; }
+  .ckx svg { width: 13px; height: 13px; stroke: currentColor; fill: none; stroke-width: 2; stroke-linecap: round; }
+  .ckrow:hover .ckx, .ckx:focus-visible { opacity: 1; }
+  .ckx:hover { background: rgba(236,59,71,0.12); color: rgb(208,96,112); }
+  .ckempty { color: rgb(85,85,85); font-size: 0.75rem; padding: 9px 12px; }
+  .free { appearance: none; background: none; border: 0; padding: 0; cursor: pointer; transition: transform 0.1s; flex-shrink: 0; }
+  .free img { display: block; width: auto; }
+  .free:hover { transform: rotate(-6deg) scale(1.06); }
+  .free:active { transform: scale(0.9); }
+  #changes-body { margin-top: 12px; max-height: 60vh; overflow-y: auto; scrollbar-width: thin; font-size: 0.8rem; line-height: 1.65; color: rgb(170,170,170); }
+  #changes-body .rel + .rel { border-top: 1px solid var(--card-border); margin-top: 12px; padding-top: 12px; }
+  #changes-body .tagl { font-weight: 600; color: #fff; font-size: 0.85rem; }
+  #changes-body .tagl span { color: var(--green); font-weight: 500; font-size: 0.7rem; margin-left: 6px; }
+  #changes-body p, #forced-notes p { margin: 6px 0 0; }
+  #changes-body .h, #forced-notes .h { color: rgb(212,212,212); font-weight: 500; }
+  #changes-body ul, #forced-notes ul { margin: 6px 0 0; }
+  #forced-notes b, #changes-body b { color: rgb(224,224,224); font-weight: 600; }
+  @media (max-width: 600px) { .ckrow .tok { display: none; } }
+  .fgroups { display: flex; flex-direction: column; gap: 6px; margin-top: 10px; }
+  .fgroups:empty { display: none; }
+  .fgroup { display: flex; align-items: center; gap: 10px; padding: 7px 8px 7px 12px; border-radius: 6px; font-size: 0.75rem;
+    background: rgba(236,59,71,0.07); color: rgb(208,96,112); }
+  .fgroup b { font-weight: 600; }
+  .fgroup .why { flex: 1; min-width: 0; color: rgb(136,136,136); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .fgroup .btn { padding: 3px 10px; font-size: 12px; }
+  .bar { height: 4px; background: rgba(255,255,255,0.06); border-radius: 99px; overflow: hidden; margin-top: 14px; }
+  .bar div { height: 100%; width: 0; background: var(--green); transition: width 0.3s; }
+  .counts { display: flex; gap: 14px; font-size: 0.75rem; color: rgb(136,136,136); margin-top: 8px; flex-wrap: wrap; }
+  .counts b { color: rgb(224,224,224); font-weight: 500; }
+  .rows { max-height: 460px; overflow-y: auto; margin-top: 10px; scrollbar-width: thin; }
+  .row { display: flex; align-items: center; gap: 10px; padding: 7px 0; border-bottom: 1px solid var(--card-border); font-size: 0.78rem; }
+  .row:last-child { border-bottom: none; }
+  .row .main { flex: 1; min-width: 0; }
+  .row .t { color: rgb(224,224,224); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .row .t span { color: rgb(102,102,102); }
+  .row .s { color: rgb(136,136,136); font-size: 0.7rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .row .s.err { color: rgb(208, 96, 112); white-space: normal; }
+  .st { font-size: 0.63rem; font-family: monospace; padding: 2px 8px; border-radius: 99px; background: rgba(255,255,255,0.05); color: rgb(136,136,136); flex-shrink: 0; }
+  .st.ok { background: rgba(59,234,87,0.1); color: rgb(59,186,87); }
+  .st.error { background: rgba(236,59,71,0.12); color: rgb(208,96,112); }
+  .st.working, .st.waiting, .st.downloading, .st.downloaded, .st.uploading { color: rgb(212,212,212); }
+  .row .btn { padding: 4px 9px; font-size: 12px; }
+
+  input[type="text"], input[type="password"] {
+    background: rgb(22, 22, 22); border: 1px solid rgba(255, 255, 255, 0.09); border-radius: 6px;
+    color: rgb(224, 224, 224); font-family: var(--font-sans); font-size: 13px; font-weight: 400;
+    padding: 7px 12px; outline: none; box-sizing: border-box; width: 100%;
+    transition: border-color 0.2s, background 0.2s;
+  }
+  .pair { display: flex; flex-direction: column; align-items: center; text-align: center; gap: 10px; padding: 18px 0 8px; }
+  .pair .code { font-family: monospace; font-size: 2.6rem; font-weight: 600; letter-spacing: 0.3em; color: #fff; user-select: all; margin-right: -0.3em; }
+  .pair .code span:nth-child(3) { margin-right: 0.45em; }
+  .pair-sub { font-size: 0.85rem; color: rgb(212,212,212); }
+  .pair-links { font-size: 0.78rem; color: rgb(144,144,144); margin-top: 4px; }
+  #st-nocode { display: flex; flex-direction: column; align-items: center; gap: 12px; }
+  .st-on { display: flex; align-items: center; justify-content: space-between; gap: 10px; font-size: 0.88rem; color: rgb(224,224,224); }
+  .review { margin-top: 14px; padding: 12px 14px; border-radius: 6px; background: rgb(22,22,22); border: 1px solid rgba(255,255,255,0.09); }
+  .review-title { display: flex; align-items: center; gap: 8px; font-size: 0.85rem; font-weight: 600; color: #fff; }
+  .review-title svg { width: 16px; height: 16px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+  .rv-row { display: flex; gap: 10px; align-items: flex-start; padding: 9px 0; border-bottom: 1px solid var(--card-border); cursor: pointer; font-size: 0.78rem; }
+  .rv-row:last-child { border-bottom: 0; }
+  .rv-row input { accent-color: var(--green); margin: 9px 0 0; flex-shrink: 0; cursor: pointer; }
+  .rv-row .main { flex: 1; min-width: 0; }
+  .rv-code { margin-top: 5px; padding: 5px 8px; border-radius: 4px; background: rgba(255,255,255,0.04); font-family: monospace; font-size: 0.72rem;
+    color: rgb(170,170,170); white-space: pre; overflow: hidden; text-overflow: ellipsis; }
+  .rv-code b { color: var(--green); font-weight: 600; }
+  .rv-where { margin-top: 3px; font-size: 0.68rem; color: rgb(110,110,110); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  #scan-svcs .chip { display: inline-flex; align-items: center; gap: 6px; }
+  #scan-svcs .chip img, #scan-svcs .chip svg { width: 16px; height: 16px; flex-shrink: 0; }
+  #scan-svcs .chip svg { fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+  #scan-svcs .chip.off img { opacity: 0.35; }
+  .pl-line { display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap; margin-top: 14px;
+    padding-top: 12px; border-top: 1px solid var(--card-border); font-size: 0.75rem; color: rgb(144,144,144); }
+  .st.ready { color: rgb(59,186,87); }
+  .arrow { color: rgb(102,102,102); margin: 0 4px; }
+  input:hover { border-color: rgba(255, 255, 255, 0.2); }
+  input:focus { border-color: rgba(255, 255, 255, 0.22); background: rgba(255, 255, 255, 0.03); }
+  input::placeholder { color: rgb(85, 85, 85); }
+
+  .btn {
+    appearance: none; display: inline-flex; align-items: center; justify-content: center; gap: 6px;
+    background: rgba(255, 255, 255, 0.05); border: 1px solid rgba(255, 255, 255, 0.1); border-radius: 6px;
+    color: rgb(212, 212, 212); font-family: var(--font-sans); font-size: 13px; font-weight: 500;
+    padding: 7px 14px; cursor: pointer; white-space: nowrap; transition: 0.2s;
+  }
+  .btn:hover { background: rgba(255, 255, 255, 0.1); border-color: rgba(255, 255, 255, 0.18); color: #fff; }
+  .btn:disabled { opacity: 0.5; cursor: default; }
+  .btn svg { width: 14px; height: 14px; stroke: currentColor; fill: none; stroke-width: 1.8; }
+  .fbtns { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 14px; }
+
+  .hint { font-size: 0.68rem; color: rgb(85, 85, 85); margin: 8px 0 0; line-height: 1.6; }
+  .hint code, code.chip {
+    background: rgba(255, 255, 255, 0.07); border-radius: 4px; padding: 1px 5px;
+    font-family: monospace; font-size: 0.8em; color: rgb(212, 212, 212);
+  }
+
+  .result { display: none; }
+  .asset { display: flex; gap: 14px; align-items: center; }
+  .thumb {
+    width: 68px; height: 68px; border-radius: 6px; background: rgb(22, 22, 22);
+    border: 1px solid rgba(255, 255, 255, 0.09); object-fit: cover; flex-shrink: 0;
+  }
+  .asset-name { font-size: 0.95rem; font-weight: 500; color: rgb(224, 224, 224); }
+  .asset-meta { font-size: 0.78rem; color: rgb(136, 136, 136); margin-top: 2px; }
+  .badge {
+    display: inline-block; font-size: 0.63rem; font-family: monospace; margin-top: 7px;
+    padding: 2px 8px; border-radius: 99px; background: rgba(255, 255, 255, 0.05); color: rgb(136, 136, 136);
+  }
+
+  .note { display: none; margin-top: 14px; padding: 9px 12px; border-radius: 6px; font-size: 0.78rem; line-height: 1.6; word-break: break-word; }
+  .note.show { display: block; }
+  .note.info { background: rgba(255, 255, 255, 0.04); color: rgb(136, 136, 136); }
+  .note.ok   { background: rgba(59, 234, 87, 0.1); color: rgb(59, 186, 87); }
+  .note.err  { background: rgba(236, 59, 71, 0.12); color: rgb(208, 96, 112); }
+  .note code { color: rgb(212, 212, 212); font-family: monospace; font-size: 0.75rem; }
+  .note b { color: rgb(224, 224, 224); font-weight: 500; }
+  .note .acts { margin-top: 9px; }
+  .dot { display: inline-block; width: 7px; height: 7px; border-radius: 50%; margin-right: 6px; vertical-align: middle; }
+  .dot.on { background: var(--green); } .dot.off { background: var(--red); } .dot.idle { background: rgb(110,110,110); }
+
+  .usage { font-size: 0.83rem; line-height: 1.7; color: rgb(170, 170, 170); }
+  .usage ul { margin: 0; padding-left: 18px; }
+  .usage li { margin-bottom: 4px; }
+  .usage li::marker { color: rgb(102, 102, 102); }
+  .usage strong { color: rgb(212, 212, 212); font-weight: 500; }
+
+  .section-head { display: flex; justify-content: space-between; align-items: center; }
+  .hist-item { display: flex; align-items: center; gap: 12px; padding: 10px 0; border-bottom: 1px solid var(--card-border); font-size: 0.8rem; }
+  .hist-item:last-child { border-bottom: none; }
+  .hist-main { flex: 1; min-width: 0; }
+  .hist-name { font-weight: 500; color: rgb(224, 224, 224); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .hist-name span { color: rgb(102, 102, 102); font-weight: 400; }
+  .hist-sub { color: rgb(136, 136, 136); font-size: 0.72rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .empty { color: rgb(102, 102, 102); text-align: center; padding: 18px 0; font-size: 0.82rem; }
+
+  .spinner { display: inline-block; width: 12px; height: 12px; border: 2px solid rgba(255,255,255,0.25);
+    border-top-color: var(--green); border-radius: 50%; animation: spin 0.7s linear infinite; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  @media (max-width: 600px) {
+    body { padding: 16px 12px; }
+    .fgrid { grid-template-columns: 1fr; gap: 4px 0; }
+    .fgrid label { margin-top: 10px; }
+    .fbtns { flex-direction: column; }
+  }
+  body { margin: 0; padding: 16px; min-height: 100vh; position: relative; }
+  .shell { position: relative; z-index: 2; display: grid; grid-template-columns: 216px minmax(0, 1fr); gap: 16px;
+    max-width: 1120px; margin: 0 auto; align-items: start; }
+  .stack { display: flex; flex-direction: column; gap: 10px; min-width: 0; padding: 4px 0 24px; }
+  .tab { flex-direction: column; gap: 10px; }
+
+  .side { position: sticky; top: 16px; height: calc(100vh - 32px); min-height: 460px; display: flex; flex-direction: column; padding: 14px 10px 12px; }
+  .brand { display: flex; align-items: center; gap: 9px; padding: 0 4px; }
+  .logo { width: 36px; height: 36px; border-radius: 8px; object-fit: cover; flex-shrink: 0; border: 1px solid rgba(255,255,255,0.1); transition: transform 0.25s; }
+  .brand:hover .logo { transform: rotate(-5deg) scale(1.05); }
+  .brand .title { margin: 0; font-size: 0.95rem; font-weight: 600; color: #fff; line-height: 1.25; }
+  .brand .title b { color: var(--green); font-weight: 600; }
+  .brand small { display: block; white-space: nowrap; font-size: 0.64rem; color: rgb(125,125,125); font-weight: 400; }
+  .titlebar { display: flex; align-items: center; gap: 11px; }
+  .free { margin: 0 0 0 auto; align-self: flex-start; }
+  .free img { height: 19px; }
+
+  nav { position: relative; display: flex; flex-direction: column; gap: 2px; margin-top: 18px; }
+  nav button { appearance: none; position: relative; z-index: 1; display: flex; align-items: center; gap: 10px; width: 100%; text-align: left;
+    font-family: var(--font-sans); font-size: 13px; font-weight: 500; background: transparent; border: 0; color: rgb(150,150,150);
+    padding: 8px 10px; border-radius: 6px; cursor: pointer; transition: color 0.2s; flex-shrink: 0; }
+  nav button svg { width: 15px; height: 15px; stroke: currentColor; fill: none; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; transition: transform 0.2s; }
+  nav button:hover { color: #fff; }
+  nav button:hover svg { transform: scale(1.12); }
+  nav button.active { color: #fff; }
+  .nav-pill { position: absolute; left: 0; top: 0; width: 0; height: 0; border-radius: 6px; background: rgba(255,255,255,0.08);
+    border: 1px solid rgba(255,255,255,0.1); transition: transform 0.28s cubic-bezier(0.3, 0.8, 0.3, 1), width 0.2s, height 0.2s; pointer-events: none; }
+  .nav-gap { height: 1px; flex-shrink: 0; background: var(--card-border); margin: 8px 10px; }
+
+  .side-foot { margin-top: auto; display: flex; flex-direction: column; gap: 10px; }
+  .acct { appearance: none; display: flex; align-items: center; gap: 9px; width: 100%; padding: 8px; border-radius: 6px; cursor: pointer;
+    background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.07); color: rgb(170,170,170); font-family: var(--font-sans);
+    font-size: 0.72rem; text-align: left; transition: 0.2s; }
+  .acct:hover { background: rgba(255,255,255,0.07); border-color: rgba(255,255,255,0.14); color: #fff; }
+  .acct-faces { display: flex; flex-shrink: 0; }
+  .acct-faces img { width: 22px; height: 22px; border-radius: 50%; object-fit: cover; background: rgb(40,40,40); border: 2px solid rgb(28,30,32); }
+  .acct-faces img + img { margin-left: -8px; }
+  .foot { text-align: left; font-size: 0.68rem; line-height: 1.75; color: rgb(102,102,102); margin: 0; padding: 0 6px; }
+  .foot a:link, .foot a:visited { color: rgb(136,136,136); font-weight: 400; }
+  .foot a:hover { color: #fff; opacity: 1; }
+
+  .page-head { padding: 6px 2px 4px; }
+  .page-head h1 { margin: 0; font-size: 1.3rem; font-weight: 600; color: #fff; letter-spacing: -0.01em; }
+  .page-head p { margin: 1px 0 0; font-size: 0.8rem; color: rgb(136,136,136); }
+  .banner { margin: 0; padding: 8px 12px; border-radius: 6px; font-size: 0.78rem; background: rgba(255,255,255,0.04); color: rgb(170,170,170); animation: note-in 0.25s both; }
+  .banner .ic { width: 13px; height: 13px; stroke: currentColor; fill: none; stroke-width: 1.8; display: inline; vertical-align: middle; margin-right: 6px; position: relative; top: -1px; }
+  #health-line { background: rgba(236,59,71,0.1); color: rgb(208,96,112); }
+
+  .card { transition: border-color 0.2s; }
+  .card-title { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 12px; }
+  .card-title h2.sect { margin: 0; }
+  h2.sect { color: rgb(200,200,200); }
+  .cols { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; align-items: stretch; }
+
+  .searchbox { position: relative; display: flex; align-items: center; gap: 8px; }
+  .searchbox > svg { position: absolute; left: 13px; width: 16px; height: 16px; fill: none; stroke: rgb(110,110,110); stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; pointer-events: none; transition: stroke 0.2s; }
+  .searchbox:focus-within > svg { stroke: rgb(212,212,212); }
+  .searchbox input { flex: 1 1 0; min-width: 0; padding: 11px 12px 11px 38px; font-size: 14px; }
+  .searchbox .btn { padding: 10px 18px; }
+
+  .btn { transition: background 0.2s, border-color 0.2s, color 0.2s, transform 0.12s; }
+  .btn:active:not(:disabled) { transform: translateY(1px) scale(0.98); }
+  .btn.main { background: rgba(255,255,255,0.12); border-color: rgba(255,255,255,0.2); color: #fff; }
+  .btn.main:hover { background: rgba(255,255,255,0.18); border-color: rgba(255,255,255,0.28); }
+  .btn svg { transition: transform 0.2s; }
+  .btn:hover:not(:disabled) svg { transform: translateY(-1px); }
+  .fbtns .btn { flex: 1 1 0; }
+  .fbtns.tight .btn { flex: 0 0 auto; }
+  .fbtns.tight { align-items: center; }
+  .grow { flex: 1 1 auto; }
+
+  .field { display: flex; flex-direction: column; gap: 5px; min-width: 0; }
+  .field > label { font-size: 0.75rem; color: rgb(144,144,144); }
+  .field-row { display: flex; gap: 8px; min-width: 0; }
+  .field-row input { flex: 1 1 0; min-width: 0; }
+  .fields { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+  .fields.one { grid-template-columns: minmax(0, 1fr); }
+
+  .opts { display: flex; flex-direction: column; }
+  .opt { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 10px 0; border-top: 1px solid var(--card-border); min-width: 0; }
+  .opt:first-child { border-top: 0; padding-top: 2px; }
+  .opt:last-child { padding-bottom: 2px; }
+  .opt-t { min-width: 0; }
+  .opt-t b { display: block; font-size: 0.8rem; font-weight: 500; color: rgb(224,224,224); }
+  .opt-t span { display: block; font-size: 0.7rem; color: rgb(125,125,125); line-height: 1.45; margin-top: 1px; }
+  .opt > input { width: 150px; flex-shrink: 0; }
+  .opt .seg { margin: 0; flex-shrink: 0; }
+
+  .sw { position: relative; display: inline-block; width: 34px; height: 20px; flex-shrink: 0; cursor: pointer; }
+  .sw input { position: absolute; inset: 0; opacity: 0; margin: 0; cursor: pointer; }
+  .sw i { position: absolute; inset: 0; border-radius: 99px; background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.1); transition: background 0.2s, border-color 0.2s; pointer-events: none; }
+  .sw i::after { content: ""; position: absolute; left: 2px; top: 2px; width: 14px; height: 14px; border-radius: 50%; background: rgb(190,190,190);
+    transition: transform 0.2s cubic-bezier(0.3, 1.4, 0.5, 1), background 0.2s; }
+  .sw:hover i { border-color: rgba(255,255,255,0.22); }
+  .sw input:checked + i { background: rgba(59,234,87,0.28); border-color: rgba(59,234,87,0.45); }
+  .sw input:checked + i::after { transform: translateX(14px); background: var(--green); }
+  .sw input:focus-visible + i { outline: 2px solid rgba(255,255,255,0.35); outline-offset: 2px; }
+
+  .seg { position: relative; display: inline-flex; padding: 2px; margin-top: 10px; background: rgb(22,22,22); border: 1px solid rgba(255,255,255,0.09); border-radius: 6px; overflow: visible; max-width: 100%; }
+  .seg-t { position: absolute; top: 2px; left: 0; bottom: 2px; width: 0; border-radius: 4px; background: rgba(255,255,255,0.11); transition: transform 0.24s cubic-bezier(0.3, 0.8, 0.3, 1), width 0.24s; pointer-events: none; }
+  .seg button { position: relative; z-index: 1; padding: 4px 11px; border-radius: 4px; background: transparent; white-space: nowrap; }
+  .seg button + button { border-left: 0; }
+  .seg button:hover { color: #fff; }
+  .seg button.on { background: transparent; color: #fff; }
+
+  .num { display: inline-flex; align-items: stretch; background: rgb(22,22,22); border: 1px solid rgba(255,255,255,0.09); border-radius: 6px; overflow: hidden; flex-shrink: 0; transition: border-color 0.2s; }
+  .num:hover { border-color: rgba(255,255,255,0.2); }
+  .num:focus-within { border-color: rgba(255,255,255,0.22); }
+  .num input[type="text"] { width: 70px; border: 0; border-radius: 0; background: transparent; text-align: center; padding: 7px 2px; }
+  .num input[type="text"]:hover, .num input[type="text"]:focus { background: transparent; }
+  .num-b { appearance: none; width: 28px; border: 0; background: rgba(255,255,255,0.04); color: rgb(170,170,170); font-family: var(--font-sans); font-size: 14px; cursor: pointer; transition: 0.15s; }
+  .num-b:hover { background: rgba(255,255,255,0.1); color: #fff; }
+  .num-b:active { background: rgba(255,255,255,0.16); }
+
+  .sel-native { position: absolute; width: 1px; height: 1px; opacity: 0; pointer-events: none; }
+  .sel { appearance: none; display: flex; align-items: center; gap: 8px; width: 100%; min-width: 0; padding: 6px 10px; background: rgb(22,22,22); border: 1px solid rgba(255,255,255,0.09);
+    border-radius: 6px; color: rgb(224,224,224); font-family: var(--font-sans); font-size: 13px; text-align: left; cursor: pointer; transition: border-color 0.2s; }
+  .sel:hover, .sel.open { border-color: rgba(255,255,255,0.22); }
+  .sel > svg { width: 13px; height: 13px; margin-left: auto; flex-shrink: 0; stroke: rgb(136,136,136); fill: none; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; transition: transform 0.2s; }
+  .sel.open > svg { transform: rotate(180deg); }
+  .sel-v { display: flex; align-items: center; gap: 8px; min-width: 0; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+  .sel-v img, .sel-o img { width: 20px; height: 20px; border-radius: 4px; object-fit: cover; flex-shrink: 0; background: rgb(40,40,40); }
+  .sel-pop { position: fixed; z-index: 40; display: flex; flex-direction: column; background: rgb(30,32,34); border: 1px solid rgba(255,255,255,0.14); border-radius: 8px;
+    box-shadow: 0 12px 32px rgba(0,0,0,0.45); overflow: hidden; transform-origin: top center; animation: pop 0.14s cubic-bezier(0.2, 0.8, 0.3, 1) both; }
+  .sel-pop input[type="text"] { border: 0; border-bottom: 1px solid rgba(255,255,255,0.09); border-radius: 0; background: transparent; }
+  .sel-list { overflow-y: auto; padding: 4px; scrollbar-width: thin; }
+  .sel-o { display: flex; align-items: center; gap: 8px; padding: 6px 8px; border-radius: 5px; font-size: 13px; color: rgb(212,212,212); cursor: pointer; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .sel-o.hot { background: rgba(255,255,255,0.08); color: #fff; }
+  .sel-o.on { color: var(--green); }
+
+  .tiles { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; margin-top: 14px; }
+  .tile { padding: 9px 12px; border-radius: 6px; background: rgb(22,22,22); border: 1px solid rgba(255,255,255,0.07); min-width: 0; }
+  .tile b { display: block; font-size: 1.15rem; font-weight: 600; color: #fff; line-height: 1.25; font-variant-numeric: tabular-nums; }
+  .tile span { font-size: 0.68rem; color: rgb(125,125,125); }
+  .tile.good b { color: rgb(59,186,87); }
+  .tile.bad b { color: rgb(208,96,112); }
+
+  .thumb { width: 92px; height: 92px; }
+  .asset-name { font-size: 1.02rem; }
+  .thumb, .rthumb { animation: fade 0.3s both; }
+  .skel { display: none; gap: 14px; align-items: center; margin-top: 16px; }
+  .skel.show { display: flex; }
+  .skel i { display: block; border-radius: 6px; background: linear-gradient(100deg, rgba(255,255,255,0.04) 30%, rgba(255,255,255,0.1) 50%, rgba(255,255,255,0.04) 70%); background-size: 220% 100%; animation: shimmer 1.1s linear infinite; }
+  .skel .a { width: 92px; height: 92px; flex-shrink: 0; }
+  .skel .b { width: 46%; height: 14px; margin-bottom: 8px; }
+  .skel .c { width: 28%; height: 10px; }
+  .skel div { flex: 1; }
+
+  .bar { height: 5px; }
+  .bar div { position: relative; overflow: hidden; transition: width 0.4s cubic-bezier(0.3, 0.8, 0.3, 1); }
+  .bar.run div::after { content: ""; position: absolute; inset: 0; background: linear-gradient(90deg, transparent, rgba(255,255,255,0.55), transparent); animation: sheen 1.2s linear infinite; }
+
+  .row, .hist-item { transition: background 0.15s; border-radius: 4px; }
+  .row:hover, .hist-item:hover { background: rgba(255,255,255,0.025); }
+  .row.in { animation: rise 0.26s cubic-bezier(0.2, 0.7, 0.2, 1) both; }
+  .chip { transition: background 0.2s, color 0.2s, border-color 0.2s, transform 0.12s; }
+  .chip:hover { transform: translateY(-1px); }
+  .chip:active { transform: scale(0.96); }
+  .drop { outline: 1px dashed rgba(59,234,87,0.6); outline-offset: -1px; }
+  input[type="checkbox"] { accent-color: var(--green); }
+
+  .pair { padding: 10px 0 4px; }
+  .pair .code span { display: inline-block; animation: rise 0.3s cubic-bezier(0.2, 0.7, 0.2, 1) both; }
+  .pair .code span:nth-child(2) { animation-delay: 0.04s; } .pair .code span:nth-child(3) { animation-delay: 0.08s; }
+  .pair .code span:nth-child(4) { animation-delay: 0.12s; } .pair .code span:nth-child(5) { animation-delay: 0.16s; }
+  .pair .code span:nth-child(6) { animation-delay: 0.2s; }
+  .dot.on { animation: breathe 2.4s ease-in-out infinite; }
+  .pl-line { margin-top: 12px; }
+  .chips.tight { margin-top: 0; }
+  .st.reachable, .st.reuse { color: rgb(59,186,87); }
+  .st.blocked { background: rgba(236,59,71,0.12); color: rgb(208,96,112); }
+  .st.checking, .st.queued { color: rgb(212,212,212); }
+
+  .note.show { animation: note-in 0.22s both; }
+  .modal-bg { animation: fade 0.16s both; }
+  .modal { animation: pop 0.2s cubic-bezier(0.2, 0.8, 0.3, 1) both; }
+  #toasts { position: fixed; right: 16px; bottom: 16px; z-index: 50; display: flex; flex-direction: column; gap: 6px; align-items: flex-end; pointer-events: none; }
+  .toast { max-width: 340px; padding: 8px 12px; border-radius: 6px; font-size: 0.76rem; background: rgb(32,34,36); border: 1px solid rgba(255,255,255,0.12); color: rgb(212,212,212);
+    box-shadow: 0 8px 22px rgba(0,0,0,0.4); animation: toast-in 0.24s cubic-bezier(0.2, 0.8, 0.3, 1) both; }
+  .toast.ok { color: rgb(59,186,87); }
+  .toast.err { color: rgb(208,96,112); }
+  .toast.out { opacity: 0; transform: translateX(10px); transition: 0.2s; }
+
+  .tab.enter > * { animation: rise 0.3s cubic-bezier(0.2, 0.7, 0.2, 1) backwards; }
+  .tab.enter > *:nth-child(2) { animation-delay: 0.04s; }
+  .tab.enter > *:nth-child(3) { animation-delay: 0.08s; }
+  .tab.enter > *:nth-child(4) { animation-delay: 0.12s; }
+  .result { animation: rise 0.26s cubic-bezier(0.2, 0.7, 0.2, 1) both; }
+  .page-head.enter h1, .page-head.enter p { animation: rise 0.24s cubic-bezier(0.2, 0.7, 0.2, 1) both; }
+
+  @keyframes rise { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
+  @keyframes fade { from { opacity: 0; } to { opacity: 1; } }
+  @keyframes pop { from { opacity: 0; transform: scale(0.97) translateY(-3px); } to { opacity: 1; transform: none; } }
+  @keyframes note-in { from { opacity: 0; transform: translateY(-4px); } to { opacity: 1; transform: none; } }
+  @keyframes toast-in { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
+  @keyframes shimmer { from { background-position: 120% 0; } to { background-position: -120% 0; } }
+  @keyframes sheen { from { transform: translateX(-100%); } to { transform: translateX(100%); } }
+  @keyframes breathe { 0%, 100% { opacity: 1; } 50% { opacity: 0.55; } }
+  @media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after { animation: none !important; transition: none !important; }
+  }
+
+  @media (max-width: 1000px) {
+    .cols { grid-template-columns: minmax(0, 1fr); }
+  }
+  @media (max-width: 800px) {
+    body { padding: 12px; }
+    .shell { grid-template-columns: minmax(0, 1fr); }
+    .side { position: static; height: auto; min-height: 0; }
+    .side-foot { margin-top: 12px; }
+    nav { flex-direction: row; overflow-x: auto; scrollbar-width: none; margin-top: 12px; }
+    nav button { width: auto; }
+    .nav-gap { display: none; }
+    .tiles { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .fields { grid-template-columns: minmax(0, 1fr); }
+    .opt { flex-wrap: wrap; }
+  }
+</style>
+</head>
+<body>
+  <div class="shell">
+    <aside class="card side">
+      <div class="brand">
+        <img class="logo" src="/logo.png" alt="" />
+        <p class="title">rbx<b>yoinker</b><small>asset downloader</small></p>
+        <button class="free" id="its-free" title="it's free"><img src="/its-free.png" alt="FREE" /></button>
+      </div>
+      <nav>
+        <span class="nav-pill" id="nav-pill"></span>
+        <button data-tab="download" class="active" data-i="download">Download</button>
+        <button data-tab="bulk" data-i="layers">Bulk</button>
+        <button data-tab="migrate" data-i="move">Migrate</button>
+        <div class="nav-gap"></div>
+        <button data-tab="accounts" data-i="users">Accounts</button>
+        <button data-tab="history" data-i="history">History</button>
+        <button data-tab="settings" data-i="settings">Settings</button>
+      </nav>
+      <div class="side-foot">
+        <button class="acct" id="side-acct"></button>
+        <p class="foot"><span id="app-version"></span> by <a href="https://github.com/3vil17" target="_blank">3vil17</a><br><a href="https://github.com/3vil17/rbxyoinker" target="_blank">GitHub</a> · <a href="#" id="changes-link">Changelog</a> · <a href="#" id="quit-link">Quit</a><br>© 2026 3vil17 · <a href="/license" target="_blank">AGPL-3.0</a> · No warranty</p>
+      </div>
+    </aside>
+
+    <main class="stack">
+      <header class="page-head" id="page-head"><h1 id="page-title">Download</h1><p id="page-sub"></p></header>
+      <p class="banner" id="update-line" style="display:none"></p>
+      <p class="banner" id="health-line" style="display:none"></p>
+
+      <section id="tab-download" class="tab" style="display:flex">
+        <div class="card">
+          <div class="searchbox">
+            <svg viewBox="0 0 24 24"><path d="M10 13a5 5 0 0 0 7.5.5l3-3a5 5 0 0 0-7-7l-1.7 1.7"/><path d="M14 11a5 5 0 0 0-7.5-.5l-3 3a5 5 0 0 0 7 7l1.7-1.7"/></svg>
+            <input id="asset-input" type="text" placeholder="Asset id or link" autocomplete="off" spellcheck="false" />
+            <button class="btn main" id="fetch-btn" data-i="search">Fetch</button>
+          </div>
+          <div class="skel" id="r-skel"><i class="a"></i><div><i class="b"></i><i class="c"></i></div></div>
+          <div class="result" id="result">
+            <div class="sep"></div>
+            <div class="asset">
+              <img class="thumb" id="r-thumb" alt="" />
+              <div style="min-width:0">
+                <div class="asset-name" id="r-name"></div>
+                <div class="asset-meta" id="r-meta"></div>
+                <span class="badge" id="r-type"></span>
+                <span class="badge acc" id="r-acc" style="display:none"></span>
+                <span class="badge mod" id="r-mod" style="display:none"></span>
+              </div>
+            </div>
+            <div class="fbtns tight">
+              <div class="num" title="Version, empty means the latest">
+                <button type="button" class="num-b" data-d="-1">−</button>
+                <input id="version-input" type="text" inputmode="numeric" placeholder="Latest" autocomplete="off" />
+                <button type="button" class="num-b" data-d="1">+</button>
+              </div>
+              <input id="place-input" class="grow" type="text" placeholder="Game id or link it's used in (optional)" autocomplete="off" spellcheck="false" style="width:auto; min-width:150px" />
+              <button class="btn" id="play-btn" data-i="play" style="display:none">Play</button>
+              <button class="btn" id="copy-id-btn" data-i="copy" title="Copy as rbxassetid://">Copy ID</button>
+              <button class="btn main" id="download-btn" data-i="download">Download</button>
+            </div>
+            <audio id="player" controls style="display:none; width:100%; margin-top:12px; height:34px"></audio>
+          </div>
+          <div class="note" id="dl-note"></div>
+        </div>
+
+        <div class="card" id="recent-card" style="display:none">
+          <h2 class="sect"><i data-i="history"></i>Recent</h2>
+          <div class="rows" id="recent-list" style="margin-top:0"></div>
+        </div>
+
+        <div class="card usage">
+          <ul>
+            <li><strong>Ctrl+V</strong> anywhere on this tab pastes and fetches.</li>
+            <li>Private assets get tried through games from the creator, the group's owner and the groups they're in.</li>
+            <li>Set a <strong>version</strong> to grab an older upload of the asset.</li>
+            <li>Bundle and outfit links open up in <strong>Bulk</strong>.</li>
+          </ul>
+        </div>
+      </section>
+
+      <section id="tab-bulk" class="tab" style="display:none">
+        <div class="card">
+          <textarea id="bulk-input" spellcheck="false" placeholder="Ids or links, one per line or separated by spaces. You can also drop a place or model file here."></textarea>
+          <div class="counts">
+            <span><b id="bulk-count">0</b> / 1000 ids</span>
+            <span id="dupes"></span>
+            <span id="preview-state"></span>
+          </div>
+          <div class="seg" id="access-seg" style="display:none">
+            <button data-a="Both" class="on">Both</button><button data-a="Public">Public</button><button data-a="Private">Private</button>
+          </div>
+          <div class="chips" id="type-chips"></div>
+          <div class="opt" style="margin-top:12px; padding-bottom:0">
+            <div class="opt-t"><b>Skip ones I already have</b><span>Anything still in your download history and on disk.</span></div>
+            <label class="sw"><input type="checkbox" id="skip-existing" checked /><i></i></label>
+          </div>
+          <div class="opt" style="padding-bottom:0">
+            <div class="opt-t"><b>Game they're used in</b><span>Optional, tried first for private assets.</span></div>
+            <input id="bulk-place" type="text" placeholder="Id or link" autocomplete="off" spellcheck="false" />
+          </div>
+          <input type="file" id="scan-file" accept=".rbxl,.rbxm,.rbxlx,.rbxmx" style="display:none" />
+          <div class="fbtns">
+            <button class="btn main" id="bulk-start" data-i="download">Download all</button>
+            <button class="btn" id="bulk-import" data-i="file">Import place / model</button>
+            <button class="btn" id="bulk-cancel" data-i="square" disabled>Cancel</button>
+          </div>
+          <div class="fbtns" id="bulk-after" style="display:none">
+            <button class="btn" id="bulk-retry" data-i="refresh">Retry failed</button>
+            <button class="btn" id="bulk-zip" data-i="archive">Zip everything</button>
+            <button class="btn" id="bulk-copy" data-i="copy">Copy failed ids</button>
+            <button class="btn" id="bulk-clear" data-i="trash">Clear list</button>
+          </div>
+          <div class="tiles" id="bulk-stats" style="display:none">
+            <div class="tile"><b data-t="done">0</b><span>done</span></div>
+            <div class="tile good"><b data-t="saved">0</b><span>saved</span></div>
+            <div class="tile bad"><b data-t="failed">0</b><span>failed</span></div>
+            <div class="tile"><b data-t="left">0</b><span>left</span></div>
+          </div>
+          <div class="bar"><div id="bulk-bar"></div></div>
+          <div class="counts" id="bulk-counts"></div>
+          <div class="fgroups" id="fail-groups"></div>
+          <div class="note" id="bulk-note"></div>
+          <div class="rows" id="bulk-rows"></div>
+        </div>
+      </section>
+
+      <section id="tab-migrate" class="tab" style="display:none">
+        <div class="card">
+          <div id="st-on" class="st-on" style="display:none">
+            <div id="st-state"></div>
+            <a href="#" id="st-off">Unpair</a>
+          </div>
+          <div id="st-pair" class="pair">
+            <h2 class="sect" style="margin:0 0 4px"><i data-i="plug"></i>Connect Studio</h2>
+            <div id="st-code" style="display:none">
+              <div class="code" id="st-tiles"></div>
+              <div class="pair-sub">Type this into the rbxyoinker plugin in Studio</div>
+              <div class="pair-links"><span id="st-left"></span> · <a href="#" id="st-copy">Copy</a> · <a href="#" id="st-new">New code</a></div>
+            </div>
+            <div id="st-nocode">
+              <div class="pair-sub">Open the plugin in Studio, then get a code and type it in.</div>
+              <button class="btn" id="st-code-btn" data-i="key">Get a code</button>
+            </div>
+          </div>
+          <div class="pl-line">
+            <span id="pl-state">Plugin</span>
+            <a href="#" id="pl-install">Install plugin</a>
+          </div>
+          <div id="pl-pick" style="display:none; margin-top:10px">
+            <p class="hint" style="margin:0 0 8px">Couldn't find Studio's Plugins folder. In Studio it's <b>Plugins tab, Plugins Folder</b>.</p>
+            <div class="frow">
+              <input id="pl-dir" type="text" placeholder="C:\Users\you\AppData\Local\Roblox\Plugins" autocomplete="off" spellcheck="false" />
+              <button class="btn" id="pl-browse" data-i="folder">Browse</button>
+              <button class="btn" id="pl-here" data-i="download">Install here</button>
+            </div>
+          </div>
+          <div class="note" id="pl-note"></div>
+        </div>
+
+        <div class="cols">
+          <div class="card">
+            <h2 class="sect"><i data-i="search"></i>Scan</h2>
+            <div class="chips tight" id="scan-svcs"></div>
+            <div class="opts" style="margin-top:12px">
+              <div class="opt">
+                <div class="opt-t"><b>Skip CoreGui</b><span>Leaves out other plugins' UI.</span></div>
+                <label class="sw"><input type="checkbox" id="scan-core" /><i></i></label>
+              </div>
+              <div class="opt" style="display:block">
+                <div class="opt-t"><b>Ids inside scripts</b></div>
+                <div class="seg" id="script-mode" style="margin-top:8px"><button data-m="off">Ignore</button><button data-m="ask">Ask me</button><button data-m="auto">Move them</button></div>
+                <p class="hint" id="script-mode-hint" style="margin:8px 0 0"></p>
+              </div>
+            </div>
+          </div>
+
+          <div class="card">
+            <h2 class="sect"><i data-i="settings"></i>Move settings</h2>
+            <div class="opts">
+              <div class="opt">
+                <div class="opt-t"><b>When it's done</b></div>
+                <div class="seg" id="mg-mode"><button data-m="swap" class="on">Swap ids</button><button data-m="map">Mapping only</button></div>
+              </div>
+              <div class="opt">
+                <div class="opt-t"><b>Upload speed</b><span id="mg-speed-hint"></span></div>
+                <div class="seg" id="mg-speed"><button data-s="safe">Safe</button><button data-s="normal">Normal</button><button data-s="fast">Fast</button></div>
+              </div>
+              <div class="opt">
+                <div class="opt-t"><b>Name prefix</b><span>Added in front of each uploaded name.</span></div>
+                <input id="mg-prefix" type="text" placeholder="None" maxlength="30" autocomplete="off" spellcheck="false" />
+              </div>
+              <div class="opt">
+                <div class="opt-t"><b>Reuse earlier moves</b><span>Already moved to this target? Use that id. <a href="#" id="mg-forget">Forget them</a></span></div>
+                <label class="sw"><input type="checkbox" id="mg-reuse" /><i></i></label>
+              </div>
+              <div class="opt">
+                <div class="opt-t"><b>Keep a copy</b><span>Saves files to Migrated in your download folder.</span></div>
+                <label class="sw"><input type="checkbox" id="mg-keep" /><i></i></label>
+              </div>
+              <div class="opt">
+                <div class="opt-t"><b>Stop after failures</b><span>Failed uploads in a row before it gives up.</span></div>
+                <div class="num">
+                  <button type="button" class="num-b" data-d="-1">−</button>
+                  <input id="mg-stop" type="text" inputmode="numeric" placeholder="Off" autocomplete="off" />
+                  <button type="button" class="num-b" data-d="1">+</button>
+                </div>
+              </div>
+              <div class="opt">
+                <div class="opt-t"><b>Mapping format</b></div>
+                <div class="seg" id="mg-fmt"><button data-f="text">Text</button><button data-f="lua">Lua</button><button data-f="json">JSON</button></div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="card" id="mg-card" style="display:none">
+          <div class="card-title">
+            <h2 class="sect"><i data-i="layers"></i><span id="mg-title">Assets from Studio</span></h2>
+            <button class="btn" id="mg-bulk" data-i="download">Send to Bulk</button>
+          </div>
+          <p class="hint" id="mg-source" style="margin:-6px 0 0"></p>
+          <div class="chips" id="mg-kinds"></div>
+          <div class="review" id="mg-review" style="display:none">
+            <div class="section-head">
+              <div class="review-title"><i data-i="code"></i><span id="mg-rv-title">Found only in scripts</span></div>
+              <div class="pair-links" style="margin:0"><a href="#" id="mg-rv-all">Select all</a> · <a href="#" id="mg-rv-none">None</a></div>
+            </div>
+            <p class="hint" style="margin:6px 0 0">A script can use a number for something else too. Tick the ones that really are assets.</p>
+            <div class="rows" id="mg-rv-rows" style="max-height:340px"></div>
+          </div>
+          <div class="sep"></div>
+          <div class="fields" id="mg-fields">
+            <div class="field" id="mg-acc-row"><label>Account</label><select id="mg-acc"></select></div>
+            <div class="field"><label>Move to</label><select id="mg-to"></select></div>
+          </div>
+          <p class="hint" id="mg-audio" style="display:none"></p>
+          <div class="fbtns">
+            <button class="btn" id="mg-check" data-i="search">Check first</button>
+            <button class="btn main" id="mg-start" data-i="move">Move assets</button>
+            <button class="btn" id="mg-cancel" data-i="square" disabled>Cancel</button>
+            <button class="btn" id="mg-copy" data-i="copy" disabled>Copy mapping</button>
+            <button class="btn" id="mg-report" data-i="file" disabled>Save report</button>
+          </div>
+          <div class="tiles" id="mg-stats" style="display:none">
+            <div class="tile"><b data-t="done">0</b><span>done</span></div>
+            <div class="tile good"><b data-t="moved">0</b><span>moved</span></div>
+            <div class="tile bad"><b data-t="failed">0</b><span>failed</span></div>
+            <div class="tile"><b data-t="left">0</b><span>left</span></div>
+          </div>
+          <div class="bar"><div id="mg-bar"></div></div>
+          <div class="note" id="mg-note"></div>
+          <div class="rows" id="mg-rows"></div>
+        </div>
+      </section>
+
+      <section id="tab-accounts" class="tab" style="display:none">
+        <div class="card">
+          <div class="card-title">
+            <h2 class="sect"><i data-i="users"></i>Accounts in use</h2>
+            <button class="btn" id="acc-refresh" data-i="refresh">Recheck</button>
+          </div>
+          <div class="note" id="acc-note"></div>
+          <div class="rows" id="acc-list" style="margin-top:0"><div class="empty">Loading…</div></div>
+          <p class="hint">Requests rotate between accounts. One that gets rate limited sits out until Roblox lets it back in.</p>
+        </div>
+      </section>
+
+      <section id="tab-history" class="tab" style="display:none">
+        <div class="card">
+          <div class="field-row">
+            <input id="hist-search" type="text" placeholder="Search by name, type or id" autocomplete="off" spellcheck="false" />
+            <button class="btn" id="clear-hist" data-i="trash">Clear</button>
+          </div>
+          <div class="chips" id="hist-chips"></div>
+          <div id="hist-list" style="margin-top:8px"><div class="empty">Loading…</div></div>
+        </div>
+      </section>
+
+      <section id="tab-settings" class="tab" style="display:none">
+        <div class="card">
+          <div class="card-title">
+            <h2 class="sect"><i data-i="key"></i>Cookies <span id="cookie-count" style="font-weight:400; color:rgb(125,125,125)"></span></h2>
+            <div style="display:flex; gap:6px">
+              <button class="btn" id="clear-dead" data-i="trash" style="display:none">Remove expired</button>
+              <button class="btn" id="clear-cookies" data-i="trash">Remove all</button>
+            </div>
+          </div>
+          <div class="cklist" id="cookie-list"><div class="ckempty">Loading…</div></div>
+          <div class="field-row" style="margin-top:8px">
+            <input id="cookies" type="password" placeholder="Paste a .ROBLOSECURITY to add" autocomplete="off" />
+            <button class="btn" id="add-cookies" data-i="plus">Add</button>
+          </div>
+          <p class="hint">A cookie is a full login, so don't share it. They stay in Windows Credential Manager on this PC. More cookies means faster bulk downloads.</p>
+          <div class="note" id="cookie-note"></div>
+
+          <div class="sep"></div>
+          <div id="key-saved" class="section-head" style="display:none">
+            <span style="font-size:0.8rem; color:rgb(212,212,212)"><span class="dot on"></span>Open Cloud API key saved</span>
+            <button class="btn" id="remove-key" data-i="trash">Remove</button>
+          </div>
+          <a href="#" id="key-show" style="font-size:0.78rem">Use an Open Cloud API key (not recommended)</a>
+          <div id="key-form" style="display:none">
+            <div class="note show err" style="margin-top:0"><b>Not recommended.</b> Cookies reach far more assets, and a key keeps working until you delete it on create.roblox.com.</div>
+            <div class="field" style="margin-top:12px">
+              <label>API key, scope <code>legacy-asset:manage</code></label>
+              <div class="field-row">
+                <input id="api-key" type="password" placeholder="Open Cloud key" autocomplete="off" />
+                <button class="btn" id="save-key" data-i="save">Save</button>
+              </div>
+            </div>
+          </div>
+          <div class="note" id="key-note"></div>
+        </div>
+
+        <div class="card">
+          <h2 class="sect"><i data-i="folder"></i>Downloads</h2>
+          <div class="fields one">
+            <div class="field">
+              <label>Save to</label>
+              <div class="field-row">
+                <input id="save-dir" type="text" placeholder="Download folder" autocomplete="off" spellcheck="false" />
+                <button class="btn" id="browse-dir" data-i="folder">Browse</button>
+              </div>
+            </div>
+            <div class="field">
+              <label>File names</label>
+              <input id="name-tpl" type="text" placeholder="{name}_{id}" autocomplete="off" spellcheck="false" />
+              <p class="hint" style="margin:2px 0 0"><code>{name}</code> <code>{id}</code> <code>{type}</code> <code>{version}</code> · <span id="name-preview" style="color:rgb(170,170,170)"></span></p>
+            </div>
+          </div>
+          <div class="opts" style="margin-top:12px">
+            <div class="opt" style="border-top:1px solid var(--card-border); padding-top:10px">
+              <div class="opt-t"><b>Sort into folders by type</b><span>Audio, Image, Mesh and so on.</span></div>
+              <label class="sw"><input type="checkbox" id="sort-type" /><i></i></label>
+            </div>
+            <div class="opt">
+              <div class="opt-t"><b>Also save meshes as .obj</b><span>Opens in Blender.</span></div>
+              <label class="sw"><input type="checkbox" id="mesh-obj" /><i></i></label>
+            </div>
+            <div class="opt">
+              <div class="opt-t"><b>Save images as .png</b><span>Converts jpg and webp.</span></div>
+              <label class="sw"><input type="checkbox" id="images-png" /><i></i></label>
+            </div>
+          </div>
+        </div>
+
+        <div class="card">
+          <h2 class="sect"><i data-i="file"></i>Legal</h2>
+          <p class="hint" style="margin:0; font-size:0.75rem; color:rgb(150,150,150)">rbxyoinker, copyright © 2026 3vil17. Free software: you can share and change it under the AGPL-3.0 and its additional terms, which require keeping this credit and marking modified versions as unofficial. It comes with no warranty. <a href="/license" target="_blank">Read the license</a> · <a href="https://github.com/3vil17/rbxyoinker" target="_blank">Source code</a></p>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <div id="toasts"></div>
+
+<div class="modal-bg" id="ask" style="display:none; z-index:30">
+  <div class="card modal" style="max-width:400px">
+    <p id="ask-text" style="margin:0; font-size:0.85rem; line-height:1.6; color:rgb(212,212,212)"></p>
+    <div class="fbtns">
+      <button class="btn" id="ask-no">Cancel</button>
+      <button class="btn" id="ask-alt" style="display:none"></button>
+      <button class="btn main" id="ask-yes">OK</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-bg" id="offline" style="display:none; z-index:60">
+  <div class="card modal" style="max-width:380px; text-align:center">
+    <img class="logo" src="/logo.png" alt="" style="width:48px; height:48px" />
+    <p id="offline-title" style="margin:12px 0 0; font-size:0.95rem; font-weight:600; color:#fff"></p>
+    <p id="offline-text" style="margin:6px 0 0; font-size:0.8rem; line-height:1.6; color:rgb(150,150,150)"></p>
+    <p class="hint" style="margin:12px 0 0"><span class="spinner"></span> This page reconnects when it's back.</p>
+  </div>
+</div>
+
+<div class="modal-bg" id="forced" style="display:none; z-index:20">
+  <div class="card modal">
+    <div class="titlebar">
+      <img class="logo" src="/logo.png" alt="" />
+      <p class="title" style="margin:0; font-size:0.95rem; font-weight:600; color:#fff">Important update required</p>
+    </div>
+    <p style="font-size:0.82rem; color:rgb(170,170,170); margin:14px 0 0">Update to <b style="color:#fff" id="forced-ver"></b> to keep using rbxyoinker.</p>
+    <div id="forced-notes" style="font-size:0.8rem; line-height:1.65; color:rgb(170,170,170); margin:10px 0 0; max-height:220px; overflow-y:auto"></div>
+    <div class="fbtns">
+      <button class="btn" id="forced-btn">Update now</button>
+      <a class="btn" id="forced-link" target="_blank" style="text-decoration:none; color:rgb(212,212,212); font-weight:500">Open on GitHub</a>
+    </div>
+    <div class="note" id="forced-note"></div>
+  </div>
+</div>
+
+<div class="modal-bg" id="changes" style="display:none">
+  <div class="card modal">
+    <div class="titlebar">
+      <img class="logo" src="/logo.png" alt="" />
+      <p class="title" style="margin:0; font-size:0.95rem; font-weight:600; color:#fff" id="changes-title">What's new</p>
+    </div>
+    <div id="changes-body"></div>
+    <div class="fbtns">
+      <button class="btn" id="changes-ok">Got it</button>
+      <a class="btn" href="https://github.com/3vil17/rbxyoinker/releases" target="_blank" style="text-decoration:none; color:rgb(212,212,212); font-weight:500">All releases</a>
+    </div>
+  </div>
+</div>
+
+<div class="modal-bg" id="terms" style="display:none">
+  <div class="card modal">
+    <div class="titlebar">
+      <img class="logo" src="/logo.png" alt="" />
+      <p class="title" style="margin:0; font-size:0.95rem; font-weight:600; color:#fff">Before you start</p>
+    </div>
+    <ul>
+      <li>rbxyoinker is a fan-made tool. It isn't made by, affiliated with or endorsed by Roblox.</li>
+      <li>Only download or reuse assets you made or have permission to use. Respect other creators and the Roblox Terms of Use.</li>
+      <li>A <code>.ROBLOSECURITY</code> cookie is a full login to that account. It stays on this PC in Windows Credential Manager. Never share it or paste it anywhere you don't trust.</li>
+      <li>Made by 3vil17. Official builds only come from <code>github.com/3vil17/rbxyoinker</code>. Modified versions have to say they're unofficial.</li>
+      <li>Using your accounts with third party tools is at your own risk. The software comes as is, with no warranty (AGPL-3.0 license).</li>
+    </ul>
+    <div class="fbtns"><button class="btn" id="terms-ok">I understand</button></div>
+  </div>
+</div>
+
+<script>
+const $ = (s) => document.querySelector(s);
+let offline = false, updating = false;
+async function api(path, opts) { const r = await fetch(path, opts); return r.json(); }
+function post(path, body) {
+  return api(path, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body || {}) });
+}
+function showNote(el, kind, html) { el.className = "note show " + kind; el.innerHTML = html; }
+function hideNote(el) { el.className = "note"; }
+function esc(s) {
+  return String(s == null ? "" : s).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+}
+
+function toast(kind, html) {
+  const el = document.createElement("div");
+  el.className = "toast " + kind; el.innerHTML = html;
+  $("#toasts").append(el);
+  setTimeout(() => { el.classList.add("out"); setTimeout(() => el.remove(), 220); }, 2600);
+}
+function ask(text, yes, alt) {
+  $("#ask-text").textContent = text;
+  $("#ask-yes").textContent = yes || "OK";
+  $("#ask-alt").textContent = alt || "";
+  $("#ask-alt").style.display = alt ? "" : "none";
+  $("#ask").style.display = "flex";
+  return new Promise((done) => {
+    const close = (v) => { $("#ask").style.display = "none"; done(v); };
+    $("#ask-yes").onclick = () => close(true);
+    $("#ask-no").onclick = () => close(false);
+    $("#ask-alt").onclick = () => close("alt");
+  });
+}
+function countTo(el, n) {
+  const from = Number(el.dataset.n || 0);
+  el.dataset.n = n;
+  if (from === n) { el.textContent = n; return; }
+  cancelAnimationFrame(el._raf);
+  const t0 = performance.now();
+  const step = (t) => {
+    const k = Math.min((t - t0) / 350, 1);
+    el.textContent = Math.round(from + (n - from) * (1 - Math.pow(1 - k, 3)));
+    if (k < 1) el._raf = requestAnimationFrame(step);
+  };
+  el._raf = requestAnimationFrame(step);
+}
+function setTiles(sel, show, vals) {
+  const box = $(sel); box.style.display = show ? "" : "none";
+  if (show) Object.keys(vals).forEach((k) => countTo(box.querySelector('[data-t="' + k + '"]'), vals[k]));
+}
+function rowClass(seen, id, total) {
+  const fresh = !seen.has(id); seen.add(id);
+  return fresh && total <= 200 ? "row in" : "row";
+}
+function movePill() {
+  const b = document.querySelector("nav button.active"), p = $("#nav-pill");
+  if (!b) return;
+  p.style.width = b.offsetWidth + "px"; p.style.height = b.offsetHeight + "px";
+  p.style.transform = "translate(" + b.offsetLeft + "px," + b.offsetTop + "px)";
+}
+const TAB_INFO = {
+  download: ["Download", "Paste an id or link and save the file."],
+  bulk: ["Bulk", "Up to 1000 ids at once, or everything in a place file."],
+  migrate: ["Migrate", "Move a place's assets to your account or a group."],
+  accounts: ["Accounts", "Who's signed in and how busy they are."],
+  history: ["History", "Your last 200 downloads."],
+  settings: ["Settings", "Cookies, folders and file names."],
+};
+function showTab(tab) {
+  $("#page-title").textContent = TAB_INFO[tab][0];
+  $("#page-sub").textContent = TAB_INFO[tab][1];
+  const head = $("#page-head"), sec = $("#tab-" + tab);
+  head.classList.remove("enter"); sec.classList.remove("enter");
+  void sec.offsetWidth;
+  head.classList.add("enter"); sec.classList.add("enter");
+  movePill();
+  const b = document.querySelector("nav button.active"), nav = b.parentNode;
+  if (nav.scrollWidth > nav.clientWidth) nav.scrollTo({ left: b.offsetLeft - 12, behavior: "smooth" });
+}
+function segThumb(seg) {
+  const t = document.createElement("span"); t.className = "seg-t"; seg.prepend(t);
+  const place = () => {
+    const on = seg.querySelector("button.on");
+    t.style.opacity = on ? 1 : 0;
+    if (on) { t.style.width = on.offsetWidth + "px"; t.style.transform = "translateX(" + on.offsetLeft + "px)"; }
+  };
+  new MutationObserver(place).observe(seg, { subtree: true, attributes: true, attributeFilter: ["class"], childList: true });
+  new ResizeObserver(place).observe(seg);
+  place();
+}
+function setSeg(seg, attr, val) {
+  seg.querySelectorAll("button").forEach((b) => b.classList.toggle("on", b.dataset[attr] === val));
+}
+function fancySelect(sel) {
+  sel.classList.add("sel-native"); sel.tabIndex = -1;
+  const btn = document.createElement("button");
+  btn.type = "button"; btn.className = "sel";
+  btn.innerHTML = '<span class="sel-v"></span><svg viewBox="0 0 24 24"><path d="m6 9 6 6 6-6"/></svg>';
+  sel.after(btn);
+  const label = (o) => (o.dataset.img ? '<img src="' + esc(o.dataset.img) + '" alt="" />' : "") + "<span>" + esc(o.textContent) + "</span>";
+  sel._sync = () => { const o = sel.selectedOptions[0]; btn.firstChild.innerHTML = o ? label(o) : ""; };
+  new MutationObserver(sel._sync).observe(sel, { childList: true });
+  let pop = null;
+  const close = () => {
+    if (!pop) return;
+    pop.remove(); pop = null; btn.classList.remove("open");
+    document.removeEventListener("mousedown", outside, true);
+  };
+  const outside = (e) => { if (pop && !pop.contains(e.target) && !btn.contains(e.target)) close(); };
+  const open = () => {
+    const opts = [...sel.options];
+    if (!opts.length) return;
+    pop = document.createElement("div"); pop.className = "sel-pop";
+    const r = btn.getBoundingClientRect();
+    const below = innerHeight - r.bottom - 12;
+    const height = Math.min(300, Math.max(below, r.top - 12));
+    pop.style.left = r.left + "px"; pop.style.width = r.width + "px"; pop.style.maxHeight = height + "px";
+    if (below >= 180 || below >= r.top) pop.style.top = r.bottom + 4 + "px";
+    else { pop.style.bottom = innerHeight - r.top + 4 + "px"; pop.style.transformOrigin = "bottom center"; }
+    pop.innerHTML = (opts.length > 7 ? '<input type="text" placeholder="Search" spellcheck="false" />' : "") + '<div class="sel-list"></div>';
+    document.body.append(pop);
+    btn.classList.add("open");
+    const list = pop.querySelector(".sel-list"), box = pop.querySelector("input");
+    let shown = opts, hot = Math.max(opts.indexOf(sel.selectedOptions[0]), 0);
+    const paint = () => {
+      list.innerHTML = shown.map((o, i) => '<div class="sel-o' + (i === hot ? " hot" : "") + (o.selected ? " on" : "") + '" data-k="' + i + '">' + label(o) + "</div>").join("");
+      const h = list.children[hot]; if (h) h.scrollIntoView({ block: "nearest" });
+    };
+    const pick = (o) => { if (!o) return; sel.value = o.value; sel._sync(); close(); sel.dispatchEvent(new Event("change")); btn.focus(); };
+    list.onmousemove = (e) => {
+      const row = e.target.closest(".sel-o"); if (!row || Number(row.dataset.k) === hot) return;
+      list.children[hot] && list.children[hot].classList.remove("hot");
+      hot = Number(row.dataset.k); row.classList.add("hot");
+    };
+    list.onclick = (e) => { const row = e.target.closest(".sel-o"); if (row) pick(shown[row.dataset.k]); };
+    if (box) box.oninput = () => {
+      const q = box.value.trim().toLowerCase();
+      shown = opts.filter((o) => o.textContent.toLowerCase().includes(q)); hot = 0; paint();
+    };
+    (box || btn).onkeydown = (e) => {
+      if (e.key === "Escape") { close(); btn.focus(); }
+      else if (e.key === "ArrowDown") { e.preventDefault(); hot = Math.min(hot + 1, shown.length - 1); paint(); }
+      else if (e.key === "ArrowUp") { e.preventDefault(); hot = Math.max(hot - 1, 0); paint(); }
+      else if (e.key === "Enter") { e.preventDefault(); pick(shown[hot]); }
+    };
+    paint();
+    if (box) box.focus();
+    document.addEventListener("mousedown", outside, true);
+  };
+  btn.onclick = () => (pop ? close() : open());
+  sel._sync();
+}
+document.addEventListener("click", (e) => {
+  const b = e.target.closest(".num-b"); if (!b) return;
+  const input = b.parentNode.querySelector("input");
+  const n = (parseInt(input.value, 10) || 0) + Number(b.dataset.d);
+  input.value = n > 0 ? n : "";
+  input.dispatchEvent(new Event("change"));
+});
+// Lucide icons (ISC license), inlined
+const ICONS = {
+  download: '<path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" x2="12" y1="15" y2="3"/>',
+  code: '<polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/>',
+  layers: '<path d="m12.83 2.18a2 2 0 0 0-1.66 0L2.6 6.08a1 1 0 0 0 0 1.83l8.58 3.91a2 2 0 0 0 1.66 0l8.58-3.9a1 1 0 0 0 0-1.83Z"/><path d="m22 17.65-9.17 4.16a2 2 0 0 1-1.66 0L2 17.65"/><path d="m22 12.65-9.17 4.16a2 2 0 0 1-1.66 0L2 12.65"/>',
+  users: '<path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/>',
+  settings: '<path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/><circle cx="12" cy="12" r="3"/>',
+  history: '<path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/><path d="M12 7v5l4 2"/>',
+  search: '<circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/>',
+  save: '<path d="M15.2 3a2 2 0 0 1 1.4.6l3.8 3.8a2 2 0 0 1 .6 1.4V19a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2z"/><path d="M17 21v-7a1 1 0 0 0-1-1H8a1 1 0 0 0-1 1v7"/><path d="M7 3v4a1 1 0 0 0 1 1h7"/>',
+  trash: '<path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/><line x1="10" x2="10" y1="11" y2="17"/><line x1="14" x2="14" y1="11" y2="17"/>',
+  refresh: '<path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8"/><path d="M21 3v5h-5"/><path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16"/><path d="M8 16H3v5"/>',
+  file: '<path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z"/><path d="M14 2v4a2 2 0 0 0 2 2h4"/>',
+  archive: '<rect width="20" height="5" x="2" y="3" rx="1"/><path d="M4 8v11a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8"/><path d="M10 12h4"/>',
+  play: '<polygon points="6 3 20 12 6 21 6 3"/>',
+  copy: '<rect width="14" height="14" x="8" y="8" rx="2" ry="2"/><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"/>',
+  plus: '<path d="M5 12h14"/><path d="M12 5v14"/>',
+  x: '<path d="M18 6 6 18"/><path d="m6 6 12 12"/>',
+  plug: '<path d="M12 22v-5"/><path d="M9 8V2"/><path d="M15 8V2"/><path d="M18 8v5a4 4 0 0 1-4 4h-4a4 4 0 0 1-4-4V8Z"/>',
+  move: '<path d="m16 3 4 4-4 4"/><path d="M20 7H4"/><path d="m8 21-4-4 4-4"/><path d="M4 17h16"/>',
+  square: '<rect width="18" height="18" x="3" y="3" rx="2"/>',
+  key: '<path d="m15.5 7.5 2.3 2.3a1 1 0 0 0 1.4 0l2.1-2.1a1 1 0 0 0 0-1.4L19 4"/><path d="m21 2-9.6 9.6"/><circle cx="7.5" cy="15.5" r="5.5"/>',
+  folder: '<path d="m6 14 1.5-2.9A2 2 0 0 1 9.24 10H20a2 2 0 0 1 1.94 2.5l-1.54 6a2 2 0 0 1-1.95 1.5H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h3.9a2 2 0 0 1 1.69.9l.81 1.2a2 2 0 0 0 1.67.9H18a2 2 0 0 1 2 2v2"/>',
+};
+const svg = (n) => '<svg viewBox="0 0 24 24">' + (ICONS[n] || "") + "</svg>";
+function setBtn(el, icon, text) { el.innerHTML = (icon ? svg(icon) : "") + " " + esc(text); }
+document.querySelectorAll("[data-i]").forEach((el) => {
+  if (el.tagName === "I") el.outerHTML = svg(el.dataset.i);
+  else el.insertAdjacentHTML("afterbegin", svg(el.dataset.i));
+});
+function friendly(msg) {
+  const m = String(msg || "").toLowerCase();
+  if (m.includes("moderated")) return "Roblox removed this asset for breaking its rules, so it can't be downloaded.";
+  if (m.includes("in review")) return "Roblox still has this asset in review, which is probably why it can't be downloaded. Try again once it's approved.";
+  if (m.includes("every saved cookie is expired")) return "Your cookies stopped working. Add fresh ones in Settings.";
+  if (m.includes("no credentials saved")) return "Add a cookie or an API key in Settings first.";
+  if (m.includes("this is a model")) return "This is a package or a private model. Only accounts that have access to it can download it.";
+  if (m.includes("rate limited")) return "Roblox is limiting how fast your accounts can download. Wait a minute, or add more cookies.";
+  if (m.includes("404")) return "This asset doesn't exist or was deleted.";
+  if (m.includes("401")) return "One of your cookies expired. Replace it in Settings.";
+  if (m.includes("not authorized") || m.includes("403") || m.includes("409"))
+    return "This asset is private and none of your accounts can get it. It didn't work in any public game from its creator, the group's owner or their groups.";
+  if (m.includes("network error")) return "Couldn't reach Roblox. Check your internet connection.";
+  return "Couldn't download this asset.";
+}
+function failReason(msg) {
+  const m = String(msg || "").toLowerCase();
+  if (m.includes("moderated")) return "Moderated";
+  if (m.includes("in review")) return "In review";
+  if (m.includes("rate limited")) return "Rate limited";
+  if (m.includes("every saved cookie is expired") || m.includes("no credentials saved") || m.includes("401")) return "Cookie problem";
+  if (m.includes("404")) return "Not found";
+  if (m.includes("this is a model") || m.includes("not authorized") || m.includes("403") || m.includes("409")) return "No access";
+  if (m.includes("network error")) return "Network";
+  return "Other";
+}
+const FAIL_HINT = {
+  "Moderated": "removed by Roblox, can't be downloaded",
+  "In review": "Roblox hasn't approved these yet, retry once it has",
+  "Rate limited": "wait a minute or add more cookies, then retry",
+  "Cookie problem": "fix your cookies in Settings, then retry",
+  "Not found": "these ids don't exist or were deleted",
+  "No access": "private, none of your accounts or the games we tried can reach them",
+  "Network": "couldn't reach Roblox",
+  "Other": "open a row's Details to see why",
+};
+function errHtml(msg) {
+  const lines = String(msg || "").split(" | ").map((l) => '<span class="line">' + esc(l) + "</span>").join("");
+  return esc(friendly(msg)) + '<details class="nerd"><summary>Details</summary><div class="raw">' + lines + "</div></details>";
+}
+
+function store(k, v) { try { if (v === undefined) return localStorage.getItem("ryk_" + k); localStorage.setItem("ryk_" + k, v); } catch (e) { return null; } }
+let accTimer = null, mgTimer = null;
+document.querySelectorAll("nav button").forEach((b) => {
+  b.onclick = () => {
+    document.querySelectorAll("nav button").forEach((x) => x.classList.remove("active"));
+    b.classList.add("active");
+    const tab = b.dataset.tab;
+    store("tab", tab);
+    ["download", "bulk", "migrate", "accounts", "settings", "history"].forEach((t) => { $("#tab-" + t).style.display = t === tab ? "flex" : "none"; });
+    showTab(tab); checkHealth();
+    clearInterval(accTimer); clearInterval(mgTimer);
+    if (tab === "migrate") { loadTargets(); loadPluginState(); loadScanPick(); pollMigrate(); mgTimer = setInterval(pollMigrate, 1500); }
+    if (tab === "settings") loadSettings();
+    if (tab === "history") loadHistory();
+    if (tab === "accounts") { loadAccounts(); accTimer = setInterval(loadAccounts, 2000); }
+  };
+});
+
+async function checkHealth() {
+  const res = await api("/api/accounts"); const el = $("#health-line");
+  const dead = res.ok ? res.data.filter((a) => !a.alive) : [];
+  if (res.ok && !res.data.length) {
+    el.style.display = ""; el.innerHTML = 'Add a cookie to get started. <a href="#" id="go-cookies">Open Settings</a>';
+    $("#go-cookies").onclick = (e) => { e.preventDefault(); document.querySelector('nav button[data-tab="settings"]').click(); };
+  }
+  const live = res.ok ? res.data.filter((a) => a.alive) : [];
+  $("#side-acct").innerHTML = (live.length ? '<span class="acct-faces">' + live.slice(0, 3).map((a) => '<img src="' + esc(a.avatar || "/logo.png") + '" alt="" />').join("") + "</span>" : "") +
+    "<span>" + (live.length === 1 ? "@" + esc(live[0].username || "unknown") : live.length ? live.length + " accounts ready" : "No accounts, add a cookie") + "</span>";
+  if (!dead.length) { if (res.ok && res.data.length) el.style.display = "none"; return; }
+  el.style.display = "";
+  el.innerHTML = svg("users").replace("<svg", '<svg class="ic" style="stroke:rgb(208,96,112)"') + dead.length + " of " + res.data.length +
+    " cookie" + (res.data.length > 1 ? "s" : "") + " stopped working (" + dead.map((a) => a.username ? "@" + esc(a.username) : "unknown").join(", ") + "). Replace " + (dead.length > 1 ? "them" : "it") + " in Settings.";
+}
+async function loadRecent() {
+  const res = await api("/api/history"); const rows = res.ok ? res.data.slice(0, 5) : [];
+  $("#recent-card").style.display = rows.length ? "" : "none";
+  $("#recent-list").innerHTML = rows.map((h, i) =>
+    '<div class="row"><div class="main"><div class="t">' + esc(h.name) + " <span>#" + h.id + "</span></div>" +
+    '<div class="s">' + esc(h.type_label) + " · " + esc(fmtWhen(h.when)) + "</div></div>" +
+    '<button class="btn" data-c="' + i + '" title="Copy as rbxassetid://">' + svg("copy") + "</button>" +
+    '<button class="btn" data-r="' + i + '" title="Show in folder">' + svg("folder") + "</button></div>").join("");
+  $("#recent-list").querySelectorAll("button[data-r]").forEach((b) => { b.onclick = () => post("/api/reveal", { path: rows[b.dataset.r].path }); });
+  $("#recent-list").querySelectorAll("button[data-c]").forEach((b) => { b.onclick = () => copyAssetId(b, rows[b.dataset.c].id); });
+}
+async function copyAssetId(btn, id) {
+  try { await navigator.clipboard.writeText("rbxassetid://" + id); } catch (e) { return; }
+  const was = btn.innerHTML;
+  btn.innerHTML = btn.textContent.trim() ? "Copied" : '<svg viewBox="0 0 24 24"><path d="M20 6 9 17l-5-5"/></svg>';
+  setTimeout(() => { btn.innerHTML = was; }, 1200);
+}
+
+let current = null;
+async function doFetch() {
+  const raw = $("#asset-input").value.trim();
+  if (!raw) return;
+  if (/\b(bundles?|outfits?)\/\d+/i.test(raw)) {
+    const box = $("#bulk-input");
+    box.value = (box.value.trim() ? box.value.trim() + String.fromCharCode(10) : "") + raw;
+    $("#asset-input").value = "";
+    document.querySelector('nav button[data-tab="bulk"]').click();
+    box.dispatchEvent(new Event("input"));
+    return;
+  }
+  const btn = $("#fetch-btn"); btn.disabled = true; btn.innerHTML = '<span class="spinner"></span> Fetch';
+  hideNote($("#dl-note")); $("#result").style.display = "none"; $("#r-skel").classList.add("show");
+  const res = await api("/api/lookup?id=" + encodeURIComponent(raw));
+  btn.disabled = false; setBtn(btn, "search", "Fetch"); $("#r-skel").classList.remove("show");
+  if (!res.ok) { showNote($("#dl-note"), "err", esc(res.error)); return; }
+  current = res.data;
+  $("#r-name").textContent = res.data.name;
+  $("#r-meta").innerHTML = res.data.creator_name ? "by " + esc(res.data.creator_name) + " · #" + res.data.id : "#" + res.data.id;
+  $("#r-type").textContent = res.data.type_label;
+  const acc = $("#r-acc"); acc.style.display = res.data.access ? "" : "none";
+  acc.textContent = res.data.access || ""; acc.className = "badge acc" + (res.data.access === "Public" ? " pub" : "");
+  $("#r-mod").style.display = res.data.moderation ? "" : "none";
+  $("#r-mod").textContent = res.data.moderation || "";
+  $("#play-btn").style.display = res.data.type_label === "Audio" ? "" : "none";
+  const pl = $("#player"); pl.pause(); pl.removeAttribute("src"); pl.style.display = "none";
+  const thumb = $("#r-thumb");
+  if (res.data.thumbnail) { thumb.src = res.data.thumbnail; thumb.style.display = ""; } else { thumb.style.display = "none"; }
+  $("#result").style.display = "block";
+  if (res.data.note) showNote($("#dl-note"), "info", esc(res.data.note));
+}
+async function doDownload() {
+  if (!current) return;
+  const btn = $("#download-btn"); btn.disabled = true; btn.innerHTML = '<span class="spinner"></span> Resolving…';
+  showNote($("#dl-note"), "info", "Looking for it, private assets can take a little while…");
+  const ver = parseInt($("#version-input").value, 10);
+  const live = setInterval(async () => {
+    const p = await api("/api/search?id=" + current.id).catch(() => null);
+    if (p && p.ok && p.data) showNote($("#dl-note"), "info", esc(p.data));
+  }, 600);
+  const res = await post("/api/download", { id: String(current.id), version: ver > 0 ? ver : null, place: $("#place-input").value.trim() || null });
+  clearInterval(live);
+  btn.disabled = false;
+  setBtn(btn, "download", "Download");
+  if (!res.ok) { showNote($("#dl-note"), "err", errHtml(res.error)); return; }
+  const d = res.data;
+  showNote($("#dl-note"), "ok",
+    "Saved <b>" + esc(d.name) + "</b> via <b>" + esc(d.method) + "</b><br><code>" + esc(d.path) + "</code>" +
+    '<div class="acts"><button class="btn" id="reveal-btn">' + svg("folder") + ' Show in folder</button></div>');
+  const rb = $("#reveal-btn"); if (rb) rb.onclick = () => post("/api/reveal", { path: d.path });
+  loadRecent();
+}
+$("#play-btn").onclick = () => {
+  if (!current) return;
+  const pl = $("#player");
+  const place = $("#place-input").value.trim();
+  pl.src = "/api/raw?id=" + current.id + (place ? "&place=" + encodeURIComponent(place) : ""); pl.style.display = "block";
+  pl.play().catch(() => showNote($("#dl-note"), "err", "Couldn't load this audio with your current credentials."));
+  pl.onerror = () => showNote($("#dl-note"), "err", "Couldn't load this audio with your current credentials.");
+};
+$("#fetch-btn").onclick = doFetch;
+$("#asset-input").addEventListener("keydown", (e) => { if (e.key === "Enter") doFetch(); });
+$("#download-btn").onclick = doDownload;
+$("#copy-id-btn").onclick = () => { if (current) copyAssetId($("#copy-id-btn"), current.id); };
+
+async function loadSettings() {
+  const res = await api("/api/settings"); if (!res.ok) return;
+  $("#save-dir").value = res.data.save_dir;
+  $("#sort-type").checked = !!res.data.sort_by_type;
+  $("#mesh-obj").checked = !!res.data.mesh_obj;
+  $("#images-png").checked = !!res.data.images_png;
+  $("#name-tpl").value = res.data.name_template || "";
+  namePreview();
+  $("#key-saved").style.display = res.data.has_key ? "" : "none";
+  $("#key-show").style.display = res.data.has_key ? "none" : "";
+  if (res.data.has_key) $("#key-form").style.display = "none";
+  loadCookies();
+}
+async function loadCookies() {
+  const res = await api("/api/accounts");
+  const rows = res.ok ? res.data : [];
+  $("#cookie-count").textContent = rows.length ? "(" + rows.length + " saved, " + rows.filter((a) => a.alive).length + " alive)" : "";
+  $("#clear-dead").style.display = rows.some((a) => !a.alive) ? "" : "none";
+  const list = $("#cookie-list");
+  if (!rows.length) { list.innerHTML = '<div class="ckempty">No cookies yet. Paste one below.</div>'; return; }
+  list.innerHTML = rows.map((a, i) =>
+    '<div class="ckrow' + (a.alive ? "" : " dead") + '"><img src="' + esc(a.avatar || "/logo.png") + '" alt="" />' +
+    '<span class="n">' + (a.username ? "@" + esc(a.username) : "unknown") + "</span>" +
+    '<span class="live"><span class="dot ' + (a.alive ? "on" : "off") + '"></span>' + (a.alive ? "alive" : "expired") + "</span>" +
+    '<span class="tok">' + esc(a.preview || "") + "</span>" +
+    '<button class="ckx" data-k="' + i + '" title="Remove">' + svg("x") + "</button></div>").join("");
+  list.querySelectorAll("button[data-k]").forEach((b) => {
+    b.onclick = async () => {
+      const a = rows[b.dataset.k];
+      if (!await ask("Remove " + (a.username ? "@" + a.username : "this cookie") + "?")) return;
+      const res = await post("/api/cookies/remove", { index: Number(b.dataset.k) });
+      if (!res.ok) { showNote($("#cookie-note"), "err", esc(res.error)); return; }
+      showNote($("#cookie-note"), "ok", "Removed " + (a.username ? "@" + esc(a.username) : "the cookie") + "."); loadCookies();
+    };
+  });
+}
+$("#clear-cookies").onclick = async () => {
+  if (!await ask("Remove all saved cookies?")) return;
+  const res = await post("/api/credentials", { cookies: "" });
+  if (!res.ok) { showNote($("#cookie-note"), "err", esc(res.error)); return; }
+  showNote($("#cookie-note"), "ok", "Removed all cookies."); loadCookies();
+};
+$("#clear-dead").onclick = async () => {
+  const btn = $("#clear-dead"); btn.disabled = true;
+  showNote($("#cookie-note"), "info", "Rechecking and removing expired cookies…");
+  const res = await post("/api/cookies/remove-dead", {});
+  btn.disabled = false;
+  if (!res.ok) { showNote($("#cookie-note"), "err", esc(res.error)); return; }
+  showNote($("#cookie-note"), res.data.removed ? "ok" : "info", res.data.removed ? "Removed " + res.data.removed + " expired cookie(s)." : "None of them are expired anymore.");
+  loadCookies();
+};
+$("#key-show").onclick = (e) => { e.preventDefault(); $("#key-show").style.display = "none"; $("#key-form").style.display = ""; $("#api-key").focus(); };
+$("#save-key").onclick = async () => {
+  const k = $("#api-key").value.trim();
+  if (k === "") { showNote($("#key-note"), "info", "Paste the key first."); return; }
+  const res = await post("/api/credentials", { api_key: k });
+  if (!res.ok) { showNote($("#key-note"), "err", esc(res.error)); return; }
+  $("#api-key").value = ""; showNote($("#key-note"), "ok", "API key saved."); loadSettings();
+};
+$("#remove-key").onclick = async () => {
+  if (!await ask("Remove the saved API key from this PC?")) return;
+  const res = await post("/api/credentials", { api_key: "" });
+  if (!res.ok) { showNote($("#key-note"), "err", esc(res.error)); return; }
+  showNote($("#key-note"), "ok", "API key removed. It still exists on create.roblox.com, delete it there too if you don't need it."); loadSettings();
+};
+$("#add-cookies").onclick = async () => {
+  const c = $("#cookies").value.trim();
+  if (c === "") { showNote($("#cookie-note"), "info", "Paste a cookie first."); return; }
+  showNote($("#cookie-note"), "info", "Adding and checking…");
+  const res = await post("/api/cookies/add", { cookies: c });
+  if (!res.ok) { showNote($("#cookie-note"), "err", esc(res.error)); return; }
+  $("#cookies").value = "";
+  showNote($("#cookie-note"), res.data.added ? "ok" : "info", res.data.added ? "Added " + res.data.added + " cookie(s)." : "Those were already saved.");
+  loadCookies();
+};
+
+let mgBefore = new Set(), mgBeforeKey = "", mgWasChecking = false;
+async function loadMovedBefore() {
+  const to = $("#mg-to").value, key = to + ":" + (mgJob ? mgJob.run_id + ":" + mgJob.running : "");
+  if (!to || key === mgBeforeKey) return;
+  mgBeforeKey = key;
+  const res = await api("/api/migrate/moved?to=" + encodeURIComponent(to));
+  mgBefore = new Set(res.ok ? res.data : []);
+  renderMigrate();
+}
+let mgTargets = [], mgJob = null, mgMode = store("mgmode") === "map" ? "map" : "swap", mgFmt = store("mapfmt") || "text", mgNote = "";
+const mgSeen = new Set(), bulkSeen = new Set();
+const mgKindsOff = new Set();
+const mgScriptPicked = new Set();
+let scriptMode = "off", mgPreviewKey = "";
+const mgThumbs = {};
+const KIND_NAMES = { Audio: "Sounds", Image: "Images", Mesh: "Meshes", Animation: "Animations" };
+async function pollStudio() {
+  const res = await api("/api/studio/status");
+  if (!res.ok) return;
+  const s = res.data;
+  const live = s.connected && s.seen_ago != null && s.seen_ago < 15;
+  $("#st-on").style.display = s.connected ? "" : "none";
+  $("#st-pair").style.display = s.connected ? "none" : "";
+  $("#st-state").innerHTML = '<span class="dot ' + (live ? "on" : "idle") + '"></span>' +
+    (live ? "Studio connected" + (s.place ? " · <b>" + esc(s.place) + "</b>" : "")
+      : 'Paired with Studio <span style="color:rgb(120,120,120)">· open Studio and it connects by itself</span>');
+  stCode = s.code || "";
+  $("#st-code").style.display = s.code ? "" : "none";
+  $("#st-nocode").style.display = s.code ? "none" : "";
+  if (s.code) {
+    if ($("#st-tiles").dataset.code !== s.code) {
+      $("#st-tiles").innerHTML = [...s.code].map((d) => "<span>" + esc(d) + "</span>").join("");
+      $("#st-tiles").dataset.code = s.code;
+    }
+    const left = s.code_left || 0;
+    $("#st-left").textContent = "Expires in " + Math.floor(left / 60) + ":" + String(left % 60).padStart(2, "0");
+  }
+}
+let stCode = "";
+async function newCode(e) { if (e) e.preventDefault(); await post("/api/studio/code", {}); pollStudio(); }
+$("#st-code-btn").onclick = () => newCode();
+$("#st-new").onclick = newCode;
+$("#st-copy").onclick = async (e) => {
+  e.preventDefault();
+  if (!stCode) return;
+  try { await navigator.clipboard.writeText(stCode); $("#st-copy").textContent = "Copied"; setTimeout(() => { $("#st-copy").textContent = "Copy"; }, 1200); } catch (err) {}
+};
+const SVC_ICON = "https://raw.githubusercontent.com/MaximumADHD/Roblox-Client-Tracker/roblox/studio-svg-textures/Shared/InsertableObjects/Dark/Standard/";
+let scanAll = [], scanOn = new Set();
+async function loadScanPick() {
+  const res = await api("/api/settings"); if (!res.ok) return;
+  scanAll = res.data.scan_all || []; scanOn = new Set(res.data.scan_services || []);
+  $("#scan-core").checked = !!res.data.scan_skip_coregui;
+  setScriptMode(res.data.script_ids || "off", false);
+  setSpeed(res.data.migrate_speed || "normal");
+  $("#mg-prefix").value = res.data.migrate_prefix || "";
+  $("#mg-reuse").checked = !!res.data.migrate_reuse;
+  $("#mg-keep").checked = !!res.data.migrate_keep;
+  $("#mg-stop").value = res.data.migrate_stop_after || "";
+  renderScanPick();
+}
+function renderScanPick() {
+  $("#scan-svcs").innerHTML = scanAll.map((n) => '<button class="chip' + (scanOn.has(n) ? "" : " off") + '" data-s="' + esc(n) + '" title="' +
+    (n === "Other" ? "Every other service in the place" : esc(n)) + '">' +
+    (n === "Other" ? svg("layers") : '<img src="' + SVC_ICON + encodeURIComponent(n) + '@2x.png" alt="" onerror="this.remove()" />') +
+    esc(n === "Other" ? "Everything else" : n) + "</button>").join("");
+  $("#scan-svcs").querySelectorAll(".chip").forEach((c) => {
+    c.onclick = () => {
+      const n = c.dataset.s; scanOn.has(n) ? scanOn.delete(n) : scanOn.add(n);
+      renderScanPick(); post("/api/settings", { scan_services: [...scanOn] });
+    };
+  });
+}
+$("#scan-core").onchange = () => post("/api/settings", { scan_skip_coregui: $("#scan-core").checked });
+const SCRIPT_MODE_HINTS = {
+  off: "Scripts aren't read. Only ids set in properties (SoundId, Image, MeshId and so on) get moved.",
+  ask: "Numbers in scripts that turn out to be real sounds, images, meshes or animations get listed with the line they're on. Only the ones you tick get moved and swapped in the script.",
+  auto: "Every number in a script that turns out to be a real asset gets moved and swapped with the rest. Quickest, but a number that only happens to match an asset id (like a group id) gets changed too.",
+};
+function setScriptMode(mode, save) {
+  scriptMode = mode;
+  setSeg($("#script-mode"), "m", mode);
+  $("#script-mode-hint").textContent = SCRIPT_MODE_HINTS[mode] || "";
+  if (save) post("/api/settings", { script_ids: mode });
+  renderMigrate();
+}
+document.querySelectorAll("#script-mode button").forEach((b) => { b.onclick = () => setScriptMode(b.dataset.m, true); });
+async function loadPluginState() {
+  const res = await api("/api/studio/plugin"); if (!res.ok) return;
+  const p = res.data;
+  $("#pl-state").innerHTML = '<span class="dot ' + (p.up_to_date ? "on" : "off") + '"></span>Plugin ' +
+    (p.up_to_date ? "installed" : p.installed ? "installed, but out of date" : "not installed") +
+    (p.dir ? ' <span style="color:rgb(102,102,102)">in ' + esc(p.dir) + "</span>" : "");
+  $("#pl-install").textContent = p.up_to_date ? "Reinstall" : p.installed ? "Update plugin" : "Install plugin";
+}
+async function installPlugin(dir) {
+  const res = await post("/api/studio/install", dir ? { dir } : {});
+  if (!res.ok) { showNote($("#pl-note"), "err", esc(res.error)); return; }
+  if (res.data.need_path) { $("#pl-pick").style.display = ""; hideNote($("#pl-note")); return; }
+  $("#pl-pick").style.display = "none";
+  showNote($("#pl-note"), "ok", "Installed to <code>" + esc(res.data.path) + "</code>. Restart Studio (or reopen your place) to load it, then find <b>rbxyoinker, Migrate</b> in the Plugins tab.");
+  loadPluginState();
+}
+$("#pl-install").onclick = (e) => { e.preventDefault(); installPlugin(null); };
+$("#pl-here").onclick = () => installPlugin($("#pl-dir").value.trim());
+$("#pl-browse").onclick = async () => {
+  const res = await post("/api/studio/pick-plugins", {});
+  if (res.ok && res.data.dir) $("#pl-dir").value = res.data.dir;
+};
+$("#st-off").onclick = async (e) => {
+  e.preventDefault();
+  if (!await ask("Unpair every Studio? Each one will need a new code to connect again. You don't need to do this when Studio is just closed.")) return;
+  await post("/api/studio/disconnect", {}); pollStudio();
+};
+async function loadTargets() {
+  if (mgTargets.length) return;
+  const res = await api("/api/migrate/targets");
+  mgTargets = res.ok ? res.data : [];
+  $("#mg-acc").innerHTML = mgTargets.map((t) => '<option value="' + t.user_id + '" data-img="' + esc(t.avatar || "") + '">@' + esc(t.username) + "</option>").join("");
+  const one = mgTargets.length <= 1;
+  $("#mg-acc-row").style.display = one ? "none" : "";
+  $("#mg-fields").classList.toggle("one", one);
+  fillTargets();
+}
+function mgAccount() { return mgTargets.find((t) => String(t.user_id) === $("#mg-acc").value) || mgTargets[0]; }
+function fillTargets() {
+  const a = mgAccount();
+  if (!a) { $("#mg-to").innerHTML = "<option>No signed in accounts, add a cookie in Settings</option>"; renderMigrate(); return; }
+  const keep = $("#mg-to").value;
+  $("#mg-to").innerHTML = '<option value="User:' + a.user_id + '" data-img="' + esc(a.avatar || "") + '">@' + esc(a.username) + " (you)</option>" +
+    a.groups.map((g) => '<option value="Group:' + g.id + '" data-img="' + esc(g.icon || "") + '">' + esc(g.name) + "</option>").join("");
+  if ([...$("#mg-to").options].some((o) => o.value === keep)) $("#mg-to").value = keep;
+  $("#mg-to")._sync();
+  renderMigrate();
+}
+$("#mg-acc").onchange = fillTargets;
+$("#mg-to").onchange = () => renderMigrate();
+document.querySelectorAll("#mg-mode button").forEach((b) => {
+  b.onclick = () => { mgMode = b.dataset.m; store("mgmode", mgMode); setSeg($("#mg-mode"), "m", mgMode); };
+});
+const SPEED_HINTS = { safe: "2s between uploads.", normal: "About 1s between uploads.", fast: "Quickest, more likely to get rate limited." };
+function setSpeed(v) { setSeg($("#mg-speed"), "s", v); $("#mg-speed-hint").textContent = SPEED_HINTS[v] || ""; }
+document.querySelectorAll("#mg-speed button").forEach((b) => {
+  b.onclick = () => { setSpeed(b.dataset.s); post("/api/settings", { migrate_speed: b.dataset.s }); };
+});
+document.querySelectorAll("#mg-fmt button").forEach((b) => {
+  b.onclick = () => { mgFmt = b.dataset.f; store("mapfmt", mgFmt); setSeg($("#mg-fmt"), "f", mgFmt); };
+});
+$("#mg-prefix").onchange = async () => {
+  const res = await post("/api/settings", { migrate_prefix: $("#mg-prefix").value });
+  toast(res.ok ? "ok" : "err", res.ok ? "Prefix saved." : esc(res.error));
+};
+$("#mg-reuse").onchange = () => post("/api/settings", { migrate_reuse: $("#mg-reuse").checked });
+$("#mg-keep").onchange = () => post("/api/settings", { migrate_keep: $("#mg-keep").checked });
+$("#mg-stop").onchange = () => {
+  const n = Math.min(parseInt($("#mg-stop").value, 10) || 0, 99);
+  $("#mg-stop").value = n || "";
+  post("/api/settings", { migrate_stop_after: n });
+};
+$("#mg-forget").onclick = async (e) => {
+  e.preventDefault();
+  if (!await ask("Forget every earlier move? Assets you move again will get uploaded again.")) return;
+  await post("/api/migrate/forget", {});
+  toast("ok", "Forgot earlier moves.");
+};
+async function pollMigrate() {
+  pollStudio();
+  const res = await api("/api/migrate/job");
+  if (!res.ok) return;
+  mgJob = res.data;
+  const key = mgJob.checked ? mgJob.place + ":" + mgJob.run_id + ":" + mgJob.items.length : "";
+  if (key && key !== mgPreviewKey && mgJob.items.length) {
+    mgPreviewKey = key;
+    post("/api/bulk/preview", { ids: mgJob.items.map((it) => String(it.id)) }).then((p) => {
+      if (p.ok) { p.data.forEach((x) => { if (x.thumb) mgThumbs[x.id] = x.thumb; }); renderMigrate(); }
+    });
+  }
+  renderMigrate();
+}
+function mgPicked() {
+  const to = $("#mg-to").value;
+  return (mgJob ? mgJob.items : []).filter((it) => it.kind && !mgKindsOff.has(it.kind) && it.owner !== to && it.state !== "ok" && it.reach !== "no" &&
+    (!it.from_script || scriptMode === "auto" || mgScriptPicked.has(it.id)));
+}
+function renderMigrate() {
+  const j = mgJob;
+  loadMovedBefore();
+  $("#mg-card").style.display = j && j.items.length ? "" : "none";
+  if (!j || !j.items.length) return;
+  const to = $("#mg-to").value;
+  $("#mg-title").textContent = j.place || "Assets from Studio";
+  const waiting = (it) => it.from_script && scriptMode !== "auto" && it.kind && it.owner !== to && it.state === "found";
+  const review = j.items.filter(waiting);
+  const movable = j.items.filter((it) => it.kind && it.owner !== to && (!waiting(it) || mgScriptPicked.has(it.id)));
+  const reuseOn = $("#mg-reuse").checked;
+  const isBefore = (it) => reuseOn && mgBefore.has(String(it.id)) && it.state !== "ok";
+  const before = movable.filter(isBefore).length;
+  $("#mg-source").innerHTML = j.items.length + " asset ids from Studio" + (j.checked
+    ? ", " + movable.length + " can be moved. The rest are already there or are types Roblox won't take, so they stay as they are." +
+      (review.length ? " " + review.length + " more only found in scripts, check below." : "") +
+      (before ? " " + before + " already moved from an earlier place, those get reused." : "")
+    : ' <span class="spinner"></span> reading them');
+  const counts = {};
+  movable.forEach((it) => { counts[it.kind] = (counts[it.kind] || 0) + 1; });
+  $("#mg-kinds").innerHTML = Object.keys(KIND_NAMES).filter((k) => counts[k]).map((k) =>
+    '<button class="chip' + (mgKindsOff.has(k) ? " off" : "") + '" data-k="' + k + '">' + KIND_NAMES[k] + " " + counts[k] + "</button>").join("");
+  $("#mg-kinds").querySelectorAll(".chip").forEach((c) => {
+    c.onclick = () => { const k = c.dataset.k; mgKindsOff.has(k) ? mgKindsOff.delete(k) : mgKindsOff.add(k); renderMigrate(); };
+  });
+  $("#mg-review").style.display = j.checked && review.length ? "" : "none";
+  const ticked = review.filter((it) => mgScriptPicked.has(it.id)).length;
+  $("#mg-rv-title").textContent = "Found only in scripts · " + ticked + " of " + review.length + " ticked";
+  const rvKey = review.map((it) => it.id + (mgScriptPicked.has(it.id) ? "+" : "-") + (mgThumbs[it.id] ? "t" : "")).join(",");
+  if ($("#mg-rv-rows").dataset.key !== rvKey) {
+    $("#mg-rv-rows").dataset.key = rvKey;
+    $("#mg-rv-rows").innerHTML = review.map((it) => {
+      const id = String(it.id);
+      const line = esc(it.line || "").split(id).join("<b>" + id + "</b>");
+      return '<label class="rv-row"><input type="checkbox" data-id="' + it.id + '"' + (mgScriptPicked.has(it.id) ? " checked" : "") + " />" +
+        (mgThumbs[it.id] ? '<img class="rthumb" loading="lazy" src="' + esc(mgThumbs[it.id]) + '" alt="" />' : '<span class="rthumb"></span>') +
+        '<div class="main"><div class="t" style="color:rgb(224,224,224)">' + esc(it.name || "asset") + ' <span style="color:rgb(102,102,102)">#' + it.id + "</span></div>" +
+        '<div class="s" style="color:rgb(136,136,136); font-size:0.7rem">' + esc(it.type_label || "?") + (it.owner_name ? " · by " + esc(it.owner_name) : "") + "</div>" +
+        (line ? '<div class="rv-code" title="' + esc(it.line) + '">' + line + "</div>" : "") +
+        '<div class="rv-where" title="' + esc(it.script) + '">in ' + esc(it.script || "a script") + "</div></div></label>";
+    }).join("");
+  }
+  const picked = mgPicked();
+  const audio = picked.filter((it) => it.kind === "Audio" && !isBefore(it)).length;
+  $("#mg-audio").style.display = audio ? "" : "none";
+  const q = j.audio_quota;
+  $("#mg-audio").textContent = audio + " audio upload" + (audio > 1 ? "s" : "") + ", they count toward Roblox's monthly limit" +
+    (q ? " (" + q[0] + " of " + q[1] + " used" + (q[0] + audio > q[1] ? ", this won't fit" : "") + ")." : ". Check first shows how much you have left.");
+  if (mgWasChecking && !j.checking) {
+    const yes = j.items.filter((it) => it.reach === "ok").length, no = j.items.filter((it) => it.reach === "no").length, re = j.items.filter((it) => it.reach === "reuse").length;
+    showNote($("#mg-note"), no ? "err" : "ok", yes + " can be moved, " + no + " blocked" + (re ? ", " + re + " reused" : "") + ". Blocked ones get left out.");
+  }
+  mgWasChecking = !!j.checking;
+  const moved = j.items.filter((it) => it.state !== "found");
+  const c = { ok: 0, error: 0 };
+  moved.forEach((it) => { if (c[it.state] != null) c[it.state]++; });
+  const done = c.ok + c.error;
+  $("#mg-bar").style.width = (moved.length ? (done / moved.length) * 100 : 0) + "%";
+  $("#mg-bar").parentNode.classList.toggle("run", !!j.running);
+  setTiles("#mg-stats", moved.length, { done, moved: c.ok, failed: c.error, left: moved.length - done });
+  if (j.note !== mgNote) { mgNote = j.note; if (mgNote) showNote($("#mg-note"), "err", esc(mgNote)); }
+  const mgList = j.items.filter((it) => !waiting(it) || mgScriptPicked.has(it.id));
+  const mgKey = JSON.stringify([to, j.checked, [...mgKindsOff], mgList.map((it) => [it.id, it.state, it.new_id, it.error, it.name, !!mgThumbs[it.id], it.reach, it.reach_error, isBefore(it)])]);
+  if ($("#mg-rows").dataset.key !== mgKey) $("#mg-rows").dataset.key = mgKey, $("#mg-rows").innerHTML = mgList.map((it) => {
+    const mine = it.kind && it.owner !== to;
+    const reach = { ok: "reachable", no: "blocked", reuse: "reuse", checking: "checking", queued: "queued" }[it.reach];
+    const state = it.state !== "found" ? it.state : !j.checked ? "" : mine ? (mgKindsOff.has(it.kind) ? "off" : reach || "ready") : it.kind ? "there" : "stays";
+    const why = (it.error && /in review/i.test(it.error) ? friendly(it.error) : it.error) || (it.state === "found" && it.reach_error ? friendly(it.reach_error) : "");
+    return '<div class="' + rowClass(mgSeen, it.id, mgList.length) + '"' + (mine || it.state !== "found" ? "" : ' style="opacity:0.5"') + ">" +
+      (mgThumbs[it.id] ? '<img class="rthumb" loading="lazy" src="' + esc(mgThumbs[it.id]) + '" alt="" />' : '<span class="rthumb"></span>') +
+      '<div class="main"><div class="t">' + esc(it.name || "asset") + " <span>#" + it.id + "</span>" +
+      (it.new_id ? '<span class="arrow">&rarr;</span><span style="color:rgb(59,186,87)">#' + it.new_id + "</span>" : "") +
+      (it.reused ? '<span class="tag">reused</span>' : isBefore(it) ? '<span class="tag">moved before</span>' : "") + "</div>" +
+      (why ? '<div class="s err">' + esc(why) + "</div>"
+        : '<div class="s">' + esc(it.type_label || "?") + (it.owner_name ? " · by " + esc(it.owner_name) : "") +
+          (it.from_script ? ' · <span style="color:rgb(212,180,90)" title="' + esc(it.script) + '">in ' + esc(it.script.split(".").pop() || "a script") + "</span>" : "") + "</div>") +
+      "</div>" + (state ? '<span class="st ' + esc(state) + '">' + esc(state) + "</span>" : "") + "</div>";
+  }).join("");
+  $("#mg-start").disabled = j.running || !j.checked || !picked.length;
+  $("#mg-check").disabled = j.running || !j.checked || !picked.length;
+  $("#mg-report").disabled = j.running || !moved.length;
+  $("#mg-bar").parentNode.classList.toggle("run", !!j.running);
+  if (j.scout) showNote($("#mg-note"), "info", esc(j.scout));
+  setBtn($("#mg-start"), "move", picked.length ? "Move " + picked.length + " asset" + (picked.length > 1 ? "s" : "") : "Move assets");
+  $("#mg-cancel").disabled = !j.running;
+  $("#mg-copy").disabled = !c.ok;
+  $("#mg-bulk").disabled = !!j.running;
+}
+$("#mg-rv-rows").addEventListener("change", (e) => {
+  const box = e.target.closest("input[data-id]"); if (!box) return;
+  const id = Number(box.dataset.id);
+  box.checked ? mgScriptPicked.add(id) : mgScriptPicked.delete(id);
+  renderMigrate();
+});
+$("#mg-rv-all").onclick = (e) => {
+  e.preventDefault();
+  $("#mg-rv-rows").querySelectorAll("input[data-id]").forEach((b) => mgScriptPicked.add(Number(b.dataset.id)));
+  renderMigrate();
+};
+$("#mg-rv-none").onclick = (e) => {
+  e.preventDefault();
+  $("#mg-rv-rows").querySelectorAll("input[data-id]").forEach((b) => mgScriptPicked.delete(Number(b.dataset.id)));
+  renderMigrate();
+};
+$("#mg-bulk").onclick = () => {
+  const box = $("#bulk-input");
+  box.value = mgJob.items.map((it) => it.id).join(String.fromCharCode(10));
+  document.querySelector('nav button[data-tab="bulk"]').click();
+  box.dispatchEvent(new Event("input"));
+};
+$("#mg-start").onclick = async () => {
+  const a = mgAccount(); if (!a) return;
+  const ids = mgPicked().map((it) => String(it.id));
+  const res = await post("/api/migrate/start", { user_id: a.user_id, to: $("#mg-to").value, ids, mode: mgMode });
+  if (!res.ok) { showNote($("#mg-note"), "err", esc(res.error)); return; }
+  showNote($("#mg-note"), "info", "Moving " + res.data.total + " assets. " +
+    (mgMode === "swap" ? "Keep Studio open, the plugin swaps the IDs when this finishes." : "The mapping will be here when it's done."));
+  pollMigrate();
+};
+$("#mg-cancel").onclick = () => post("/api/migrate/cancel", {});
+$("#mg-check").onclick = async () => {
+  const a = mgAccount(); if (!a) return;
+  const res = await post("/api/migrate/check", { user_id: a.user_id, to: $("#mg-to").value, ids: mgPicked().map((it) => String(it.id)) });
+  if (!res.ok) { showNote($("#mg-note"), "err", esc(res.error)); return; }
+  showNote($("#mg-note"), "info", "Checking " + res.data.total + " assets, nothing gets uploaded."); pollMigrate();
+};
+$("#mg-report").onclick = () => {
+  const nl = String.fromCharCode(10), items = mgJob ? mgJob.items : [];
+  const line = (it) => it.id + "  " + (it.name || "asset") + "  (" + (it.type_label || "?") + ")";
+  const okItems = items.filter((it) => it.new_id), bad = items.filter((it) => it.state === "error");
+  const rest = items.filter((it) => !it.new_id && it.state !== "error");
+  const text = ["rbxyoinker migrate report", "Place: " + (mgJob.place || "unknown"), "Target: " + $("#mg-to").selectedOptions[0].textContent, "Date: " + new Date().toLocaleString(), "",
+    "Moved (" + okItems.length + ")", ...okItems.map((it) => it.id + " -> " + it.new_id + "  " + (it.name || "asset") + (it.reused ? "  (reused)" : "")), "",
+    "Failed, old id still in the place (" + bad.length + ")", ...bad.map((it) => line(it) + "  " + (it.error || "")), "",
+    "Not moved, old id still in the place (" + rest.length + ")", ...rest.map(line)].join(nl);
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(new Blob([text], { type: "text/plain" }));
+  a.download = "migrate-report-" + (mgJob.place || "place").replace(/[^\w-]+/g, "_") + ".txt";
+  a.click(); URL.revokeObjectURL(a.href);
+};
+$("#mg-copy").onclick = async () => {
+  const done = (mgJob ? mgJob.items : []).filter((it) => it.new_id);
+  const nl = String.fromCharCode(10);
+  const text = mgFmt === "lua" ? "return {" + nl + done.map((it) => "\t[" + it.id + "] = " + it.new_id + ",").join(nl) + nl + "}"
+    : mgFmt === "json" ? JSON.stringify(Object.fromEntries(done.map((it) => [it.id, it.new_id])), null, 2)
+    : done.map((it) => it.id + " -> " + it.new_id).join(nl);
+  try { await navigator.clipboard.writeText(text); toast("ok", "Copied " + done.length + " ids."); }
+  catch (e) { showNote($("#mg-note"), "err", "Couldn't copy: " + esc(e.message)); }
+};
+
+async function loadAccounts(recheck) {
+  const res = recheck ? await post("/api/accounts/refresh", {}) : await api("/api/accounts");
+  const list = $("#acc-list");
+  if (!res.ok || !res.data.length) { list.innerHTML = '<div class="empty">No cookies saved. Add them in Settings.</div>'; return res.ok ? res.data : null; }
+  list.innerHTML = res.data.map((a) => {
+    const state = !a.alive ? '<span class="st error">dead</span>' : a.cooling ? '<span class="st working">cooling ' + a.cooling + "s</span>" : '<span class="st ok">ready</span>';
+    return '<div class="row"><img class="avatar' + (a.alive ? "" : " off") + '" src="' + esc(a.avatar || "/logo.png") + '" alt="" /><div class="main">' +
+      '<div class="t">' + (a.username ? "@" + esc(a.username) : "unknown") + (a.user_id ? " <span>#" + a.user_id + "</span>" : "") + "</div>" +
+      '<div class="s">' + a.uses + " requests · " + a.limited + " rate limits" + (a.last_error ? " · " + esc(a.last_error) : "") + "</div>" +
+      "</div>" + state + "</div>";
+  }).join("");
+  return res.data;
+}
+$("#acc-refresh").onclick = async () => {
+  const btn = $("#acc-refresh"); btn.disabled = true; btn.innerHTML = '<span class="spinner"></span> Checking…';
+  showNote($("#acc-note"), "info", "Checking every cookie with Roblox…");
+  const data = await loadAccounts(true);
+  btn.disabled = false; setBtn(btn, "refresh", "Recheck");
+  if (!data) { showNote($("#acc-note"), "err", "Couldn't reach the app."); return; }
+  const live = data.filter((a) => a.alive).length;
+  showNote($("#acc-note"), live === data.length && live ? "ok" : "err",
+    "Checked " + data.length + " cookie(s): " + live + " alive" + (data.length - live ? ", " + (data.length - live) + " expired or invalid" : "") + ".");
+  setTimeout(() => hideNote($("#acc-note")), 5000);
+};
+$("#browse-dir").onclick = async () => {
+  const btn = $("#browse-dir"); btn.disabled = true;
+  const res = await post("/api/pick-folder", {});
+  btn.disabled = false;
+  if (!res.ok) { toast("err", esc(res.error)); return; }
+  if (res.data.save_dir) { $("#save-dir").value = res.data.save_dir; toast("ok", "Download folder saved."); }
+};
+
+function splitIds(text) { return text.split(/[\s,;]+/).map((s) => (s.match(/\d+/g) || []).sort((a, b) => b.length - a.length)[0]).filter(Boolean); }
+let preview = null, previewTimer = null, previewSeq = 0;
+const typeOff = new Set();
+let accessPick = "Both";
+const accessOf = {};
+const picked = (x) => !typeOff.has(x.type) && (accessPick === "Both" || x.access === accessPick);
+document.querySelectorAll("#access-seg button").forEach((b) => {
+  b.onclick = () => { accessPick = b.dataset.a; renderChips(); };
+});
+const thumbs = {};
+const REF_RE = /\S*\b(bundles?|outfits?)\/(\d+)\S*/gi;
+async function expandRefs() {
+  const box = $("#bulk-input");
+  const items = [...box.value.matchAll(REF_RE)].map((m) => ({ kind: m[1].toLowerCase().startsWith("bundle") ? "bundle" : "outfit", id: m[2] }));
+  if (!items.length) return;
+  $("#preview-state").innerHTML = '<span class="spinner"></span> opening bundles';
+  const res = await post("/api/expand", { items });
+  $("#preview-state").textContent = "";
+  const found = {};
+  (res.ok ? res.data : []).forEach((r) => { found[r.kind + r.id] = r; });
+  const msgs = [];
+  box.value = box.value.replace(REF_RE, (m, k, id) => {
+    const r = found[(k.toLowerCase().startsWith("bundle") ? "bundle" : "outfit") + id];
+    if (!r || !r.ids.length) { msgs.push("Couldn't open " + (r ? r.kind : "link") + " " + esc(id) + "."); return ""; }
+    msgs.push("<b>" + esc(r.name) + "</b> (" + r.kind + ") became " + r.ids.length + " assets.");
+    return r.ids.join(String.fromCharCode(10));
+  });
+  showNote($("#bulk-note"), msgs.some((x) => x.startsWith("Couldn't")) ? "err" : "ok", msgs.join("<br>"));
+  box.dispatchEvent(new Event("input"));
+}
+$("#bulk-input").addEventListener("input", () => {
+  const all = splitIds($("#bulk-input").value);
+  const n = new Set(all).size;
+  $("#dupes").textContent = all.length > n ? (all.length - n) + " duplicate" + (all.length - n > 1 ? "s" : "") + " removed" : "";
+  REF_RE.lastIndex = 0;
+  if (REF_RE.test($("#bulk-input").value)) { REF_RE.lastIndex = 0; clearTimeout(previewTimer); previewTimer = setTimeout(expandRefs, 300); return; }
+  $("#bulk-count").textContent = n; $("#bulk-count").style.color = n > 1000 ? "var(--red)" : "";
+  preview = null; $("#type-chips").innerHTML = ""; $("#preview-state").textContent = ""; $("#access-seg").style.display = "none";
+  clearTimeout(previewTimer);
+  if (n && n <= 1000) previewTimer = setTimeout(loadPreview, 700);
+});
+async function loadPreview() {
+  const ids = [...new Set(splitIds($("#bulk-input").value))];
+  if (!ids.length) return null;
+  const seq = ++previewSeq;
+  $("#preview-state").innerHTML = '<span class="spinner"></span> checking types';
+  const res = await post("/api/bulk/preview", { ids });
+  if (seq !== previewSeq) return preview;
+  $("#preview-state").textContent = "";
+  if (!res.ok) return null;
+  preview = res.data;
+  preview.forEach((x) => { if (x.thumb) thumbs[x.id] = x.thumb; accessOf[x.id] = x.access; });
+  renderChips();
+  return preview;
+}
+function renderChips() {
+  const counts = {};
+  (preview || []).forEach((x) => { counts[x.type] = (counts[x.type] || 0) + 1; });
+  const types = Object.keys(counts).sort((a, b) => counts[b] - counts[a]);
+  $("#type-chips").innerHTML = types.length > 1 ? types.map((t) =>
+    '<button class="chip' + (typeOff.has(t) ? " off" : "") + '" data-t="' + esc(t) + '">' + esc(t) + " " + counts[t] + "</button>").join("") : "";
+  $("#type-chips").querySelectorAll(".chip").forEach((c) => {
+    c.onclick = () => { const t = c.dataset.t; typeOff.has(t) ? typeOff.delete(t) : typeOff.add(t); renderChips(); };
+  });
+  const acc = { Public: 0, Private: 0 };
+  (preview || []).forEach((x) => { acc[x.access] = (acc[x.access] || 0) + 1; });
+  $("#access-seg").style.display = preview && preview.length ? "" : "none";
+  document.querySelectorAll("#access-seg button").forEach((b) => {
+    const a = b.dataset.a;
+    b.className = a === accessPick ? "on" : "";
+    b.innerHTML = a + "<span>" + (a === "Both" ? acc.Public + acc.Private : acc[a]) + "</span>";
+  });
+  $("#bulk-count").textContent = (preview || []).filter(picked).length;
+}
+let bulkTimer = null;
+function renderBulk(d) {
+  const it = d.items, c = { ok: 0, have: 0, error: 0, skipped: 0, waiting: 0 };
+  it.forEach((x) => { if (c[x.state] != null) c[x.state]++; });
+  const done = c.ok + c.have + c.error + c.skipped;
+  $("#bulk-bar").style.width = (it.length ? (done / it.length) * 100 : 0) + "%";
+  $("#bulk-bar").parentNode.classList.toggle("run", !!d.running);
+  document.title = d.running && it.length ? done + "/" + it.length + " · rbxyoinker" : "rbxyoinker";
+  setTiles("#bulk-stats", it.length, { done, saved: c.ok + c.have, failed: c.error, left: it.length - done });
+  $("#bulk-counts").innerHTML = (d.scout ? '<span><span class="spinner"></span> ' + esc(d.scout) + "</span>" : "") + (c.have ? "<span><b>" + c.have + "</b> already had</span>" : "") +
+    (c.waiting ? "<span><b>" + c.waiting + "</b> waiting on rate limit</span>" : "") + (c.skipped ? "<span><b>" + c.skipped + "</b> skipped</span>" : "");
+  const rowsKey = JSON.stringify(it.map((x) => [x.id, x.state, x.name, x.error, x.method, x.path, !!thumbs[x.id], accessOf[x.id]]));
+  if ($("#bulk-rows").dataset.key !== rowsKey) $("#bulk-rows").dataset.key = rowsKey, $("#bulk-rows").innerHTML = it.map((x, i) =>
+    '<div class="' + rowClass(bulkSeen, x.id, it.length) + '">' + (thumbs[x.id] ? '<img class="rthumb" loading="lazy" src="' + esc(thumbs[x.id]) + '" alt="" />' : '<span class="rthumb"></span>') + '<div class="main"><div class="t">' + esc(x.name || "asset") + " <span>#" + x.id + "</span>" +
+    (accessOf[x.id] ? '<span class="tag' + (accessOf[x.id] === "Public" ? " pub" : "") + '">' + accessOf[x.id] + "</span>" : "") + "</div>" +
+    (x.error ? '<div class="s err">' + errHtml(x.error) + "</div>" : x.method ? '<div class="s">' + esc(x.method) + "</div>" : "") +
+    '</div><span class="st ' + x.state + '">' + x.state + "</span>" +
+    (x.path ? '<button class="btn" data-p="' + i + '">' + svg("folder") + "</button>" : "") + "</div>").join("");
+  $("#bulk-rows").querySelectorAll("button[data-p]").forEach((b) => { b.onclick = () => post("/api/reveal", { path: it[b.dataset.p].path }); });
+  const groups = {};
+  if (!d.running) it.filter((x) => x.state === "error").forEach((x) => { (groups[failReason(x.error)] = groups[failReason(x.error)] || []).push(x.id); });
+  const order = Object.keys(groups).sort((a, b) => groups[b].length - groups[a].length);
+  $("#fail-groups").innerHTML = order.map((r) =>
+    '<div class="fgroup"><b>' + groups[r].length + " " + esc(r) + '</b><span class="why">' + esc(FAIL_HINT[r]) + "</span>" +
+    (r === "Moderated" || r === "Not found" ? "" : '<button class="btn" data-g="' + esc(r) + '">' + svg("refresh") + " Retry</button>") + "</div>").join("");
+  $("#fail-groups").querySelectorAll("button[data-g]").forEach((b) => { b.onclick = () => retryBulk(groups[b.dataset.g].map(String)); });
+  $("#bulk-start").disabled = d.running; $("#bulk-cancel").disabled = !d.running;
+  $("#bulk-after").style.display = !d.running && it.length ? "flex" : "none";
+  $("#bulk-retry").disabled = !(c.error + c.skipped);
+  $("#bulk-zip").disabled = !(c.ok + c.have);
+  $("#bulk-copy").disabled = !c.error;
+  $("#bulk-clear").disabled = !!d.running;
+  lastBulk = it;
+}
+let lastBulk = [];
+$("#bulk-copy").onclick = async () => {
+  const ids = lastBulk.filter((x) => x.state === "error").map((x) => x.id);
+  try { await navigator.clipboard.writeText(ids.join(String.fromCharCode(10))); showNote($("#bulk-note"), "ok", "Copied " + ids.length + " failed ids."); }
+  catch (e) { showNote($("#bulk-note"), "err", "Couldn't copy: " + esc(e.message)); }
+};
+const bulkCard = $("#bulk-input").closest(".card");
+["dragenter", "dragover"].forEach((ev) => bulkCard.addEventListener(ev, (e) => { e.preventDefault(); bulkCard.classList.add("drop"); }));
+["dragleave", "drop"].forEach((ev) => bulkCard.addEventListener(ev, (e) => { e.preventDefault(); if (ev === "drop" || !bulkCard.contains(e.relatedTarget)) bulkCard.classList.remove("drop"); }));
+bulkCard.addEventListener("drop", (e) => { const f = e.dataTransfer.files[0]; if (f) importFile(f); });
+function startPolling() { pollBulk(); if (!bulkTimer) bulkTimer = setInterval(pollBulk, 1000); }
+async function pollBulk() {
+  const res = await api("/api/bulk/status"); if (!res.ok) return;
+  renderBulk(res.data);
+  if (!res.data.running) { clearInterval(bulkTimer); bulkTimer = null; }
+}
+$("#bulk-clear").onclick = async () => {
+  const res = await post("/api/bulk/clear", {});
+  if (!res.ok) { showNote($("#bulk-note"), "err", esc(res.error)); return; }
+  hideNote($("#bulk-note")); $("#bulk-bar").style.width = "0"; $("#bulk-counts").innerHTML = ""; bulkSeen.clear();
+  pollBulk();
+};
+$("#skip-existing").checked = store("skip") !== "0";
+$("#skip-existing").onchange = () => store("skip", $("#skip-existing").checked ? "1" : "0");
+$("#bulk-start").onclick = async () => {
+  hideNote($("#bulk-note"));
+  clearTimeout(previewTimer);
+  const p = preview || await loadPreview();
+  const ids = p ? p.filter(picked).map((x) => x.id) : splitIds($("#bulk-input").value);
+  if (!ids.length) { showNote($("#bulk-note"), "err", "Nothing matches the current filters."); return; }
+  const res = await post("/api/bulk", { ids, skip_existing: $("#skip-existing").checked, place: $("#bulk-place").value.trim() || null });
+  if (!res.ok) { showNote($("#bulk-note"), "err", esc(res.error)); return; }
+  showNote($("#bulk-note"), "info", "Started " + res.data.total + " assets with " + res.data.workers + " workers.");
+  startPolling();
+};
+$("#bulk-retry").onclick = () => retryBulk(null);
+async function retryBulk(ids) {
+  const res = await post("/api/bulk/retry", ids ? { ids } : {});
+  if (!res.ok) { showNote($("#bulk-note"), "err", esc(res.error)); return; }
+  showNote($("#bulk-note"), "info", "Retrying " + res.data.total + " assets.");
+  startPolling();
+};
+$("#bulk-zip").onclick = async () => {
+  const btn = $("#bulk-zip"); btn.disabled = true; btn.innerHTML = '<span class="spinner"></span> Zipping…';
+  const res = await post("/api/bulk/zip", {});
+  setBtn(btn, "archive", "Zip everything"); btn.disabled = false;
+  if (!res.ok) { showNote($("#bulk-note"), "err", esc(res.error)); return; }
+  showNote($("#bulk-note"), "ok", "Zipped " + res.data.count + " files<br><code>" + esc(res.data.path) + "</code>");
+  post("/api/reveal", { path: res.data.path });
+};
+$("#bulk-import").onclick = () => $("#scan-file").click();
+$("#scan-file").onchange = () => {
+  const f = $("#scan-file").files[0]; if (!f) return;
+  $("#scan-file").value = "";
+  importFile(f);
+};
+async function importFile(f) {
+  if (!/\.rbx[lm]x?$/i.test(f.name)) { showNote($("#bulk-note"), "err", "Drop a .rbxl, .rbxm, .rbxlx or .rbxmx file."); return; }
+  showNote($("#bulk-note"), "info", "Scanning <b>" + esc(f.name) + "</b>…");
+  const r = await fetch("/api/scan-file", { method: "POST", body: f });
+  const res = await r.json().catch(() => ({ ok: false, error: "scan failed" }));
+  if (!res.ok) { showNote($("#bulk-note"), "err", esc(res.error)); return; }
+  const have = new Set(splitIds($("#bulk-input").value));
+  const fresh = res.data.ids.filter((id) => !have.has(id));
+  if (!res.data.ids.length) { showNote($("#bulk-note"), "err", "No asset ids found in " + esc(f.name) + "."); return; }
+  const box = $("#bulk-input");
+  const sep = String.fromCharCode(10);
+  box.value = (box.value.trim() ? box.value.trim() + sep : "") + fresh.join(sep);
+  box.dispatchEvent(new Event("input"));
+  const total = have.size + fresh.length;
+  showNote($("#bulk-note"), total > 1000 ? "err" : "ok", "Found " + res.data.ids.length + " asset ids in <b>" + esc(f.name) + "</b>, added " + fresh.length + " new." +
+    (total > 1000 ? " That's over 1000, run the first 1000 then paste the rest in a second batch." : ""));
+}
+$("#bulk-cancel").onclick = () => post("/api/bulk/cancel", {});
+pollBulk().then(() => { if ($("#bulk-cancel").disabled === false) startPolling(); });
+$("#images-png").onchange = async () => {
+  const res = await post("/api/settings", { images_png: $("#images-png").checked });
+  if (!res.ok) { toast("err", esc(res.error)); return; }
+  toast("ok", res.data.images_png ? "Images get saved as .png." : "Images keep the format Roblox sends.");
+};
+function namePreview() {
+  const t = $("#name-tpl").value.trim() || "{name}_{id}";
+  const out = t.replace(/\{name\}/g, "lagtrain_emote").replace(/\{id\}/g, "75885924747466").replace(/\{type\}/g, "Audio").replace(/\{version\}/g, "");
+  $("#name-preview").textContent = out.replace(/[<>:"/\\|?*]/g, "_") + ".ogg";
+}
+$("#name-tpl").addEventListener("input", namePreview);
+$("#name-tpl").addEventListener("keydown", (e) => { if (e.key === "Enter") e.target.blur(); });
+$("#name-tpl").onchange = async () => {
+  const res = await post("/api/settings", { name_template: $("#name-tpl").value });
+  if (!res.ok) { toast("err", esc(res.error)); return; }
+  $("#name-tpl").value = res.data.name_template; namePreview();
+  toast("ok", "New downloads will be named like that.");
+};
+$("#mesh-obj").onchange = async () => {
+  const res = await post("/api/settings", { mesh_obj: $("#mesh-obj").checked });
+  if (!res.ok) { toast("err", esc(res.error)); return; }
+  toast("ok", res.data.mesh_obj ? "Meshes also get saved as .obj." : "Meshes are saved as .mesh only.");
+};
+$("#sort-type").onchange = async () => {
+  const res = await post("/api/settings", { sort_by_type: $("#sort-type").checked });
+  if (!res.ok) { toast("err", esc(res.error)); return; }
+  toast("ok", res.data.sort_by_type ? "New downloads go into a folder per type." : "New downloads go straight into the folder.");
+};
+async function installUpdate(btn, noteEl) {
+  updating = true;
+  btn.disabled = true; btn.innerHTML = '<span class="spinner"></span> Starting…';
+  const watch = setInterval(async () => {
+    const p = await api("/api/update/progress").catch(() => null);
+    if (!p || !p.ok) return;
+    const d = p.data;
+    const text = d.stage === "download" ? "Downloading" + (d.total ? " " + Math.round((d.done / d.total) * 100) + "%" : "…")
+      : d.stage === "check" ? "Checking the file…" : d.stage === "install" ? "Installing…" : "";
+    if (text) btn.innerHTML = '<span class="spinner"></span> ' + text;
+  }, 300);
+  const res = await post("/api/update/install", {}).catch(() => ({ ok: false, error: "lost connection" }));
+  clearInterval(watch);
+  if (!res.ok) {
+    updating = false;
+    btn.disabled = false; setBtn(btn, "download", "Update now");
+    noteEl.className = "note show err"; noteEl.textContent = res.error;
+    return;
+  }
+  btn.innerHTML = '<span class="spinner"></span> Restarting…';
+  for (let i = 0; i < 60; i++) {
+    await new Promise((r) => setTimeout(r, 1000));
+    try { const u = await api("/api/update"); if (u.ok && u.data.current !== updateInfo.current) { location.reload(); return; } } catch (e) {}
+  }
+  btn.innerHTML = "Restart rbxyoinker to finish";
+}
+let updateInfo = null;
+async function checkUpdate() {
+  if (updating) return;
+  const res = await api("/api/update").catch(() => null);
+  if (!res || !res.ok || !res.data.available) return;
+  updateInfo = res.data;
+  if (res.data.important) {
+    $("#forced-ver").textContent = res.data.latest + " (you have v" + res.data.current + ")";
+    $("#forced-notes").innerHTML = mdLite(res.data.notes || "This update fixes something important, so older versions can't keep running.");
+    $("#forced-link").href = res.data.url;
+    $("#forced").style.display = "flex";
+    const fb = $("#forced-btn");
+    if (!res.data.can_install) { fb.style.display = "none"; }
+    fb.onclick = () => installUpdate(fb, $("#forced-note"));
+    return;
+  }
+  const el = $("#update-line"); el.style.display = "";
+  el.innerHTML = svg("download").replace("<svg", '<svg class="ic"') + 'Update available: <a href="' + esc(res.data.url) + '" target="_blank">' + esc(res.data.latest) + "</a> (you have v" + esc(res.data.current) + ")" +
+    (res.data.can_install ? ' <button class="btn" id="update-btn" style="padding:3px 10px; font-size:12px; margin-left:6px">Update now</button>' : "");
+  const ub = $("#update-btn"); if (ub) ub.onclick = () => installUpdate(ub, $("#dl-note"));
+}
+checkUpdate();
+setInterval(checkUpdate, 30 * 60 * 1000);
+$("#save-dir").addEventListener("keydown", (e) => { if (e.key === "Enter") e.target.blur(); });
+$("#save-dir").onchange = async () => {
+  const res = await post("/api/settings", { save_dir: $("#save-dir").value });
+  if (!res.ok) { toast("err", esc(res.error)); return; }
+  toast("ok", "Download folder saved.");
+};
+
+function fmtWhen(ms) { const n = Number(ms); if (!n) return ""; return new Date(n).toLocaleString(); }
+let histAll = [], histType = "";
+const histThumbs = {};
+async function loadHistory() {
+  const res = await api("/api/history");
+  histAll = res.ok ? res.data : [];
+  renderHistory();
+  const ids = [...new Set(histAll.map((h) => h.id))].filter((id) => !histThumbs[id]);
+  if (!ids.length) return;
+  const t = await post("/api/thumbs", { ids });
+  if (t.ok) { Object.assign(histThumbs, t.data); renderHistory(); }
+}
+$("#hist-search").addEventListener("input", renderHistory);
+function renderHistory() {
+  const list = $("#hist-list"), q = $("#hist-search").value.trim().toLowerCase();
+  const types = [...new Set(histAll.map((h) => h.type_label))].sort();
+  $("#hist-chips").innerHTML = types.length > 1 ? types.map((t) => '<button class="chip' + (histType && histType !== t ? " off" : "") + '" data-t="' + esc(t) + '">' + esc(t) + "</button>").join("") : "";
+  $("#hist-chips").querySelectorAll(".chip").forEach((c) => { c.onclick = () => { histType = histType === c.dataset.t ? "" : c.dataset.t; renderHistory(); }; });
+  const rows = histAll.filter((h) => (!histType || h.type_label === histType) && (!q || (h.name + " " + h.type_label + " " + h.id).toLowerCase().includes(q)));
+  if (!rows.length) { list.innerHTML = '<div class="empty">' + (histAll.length ? "Nothing matches." : "No downloads yet.") + "</div>"; return; }
+  list.innerHTML = rows.map((h) =>
+    '<div class="hist-item">' + (histThumbs[h.id] ? '<img class="rthumb" loading="lazy" src="' + esc(histThumbs[h.id]) + '" alt="" />' : '<span class="rthumb"></span>') + '<div class="hist-main">' +
+    '<div class="hist-name">' + esc(h.name) + ' <span>#' + h.id + '</span></div>' +
+    '<div class="hist-sub">' + esc(h.type_label) + " · " + esc(h.method) + " · " + esc(fmtWhen(h.when)) + '</div>' +
+    '</div><button class="btn" data-again="' + h.id + '" title="Download again">' + svg("refresh") + '</button><button class="btn" data-copy="' + h.id + '" title="Copy as rbxassetid://">' + svg("copy") + '</button><button class="btn" data-path="' + esc(h.path) + '">Show</button></div>'
+  ).join("");
+  list.querySelectorAll("button[data-path]").forEach((b) => { b.onclick = () => post("/api/reveal", { path: b.dataset.path }); });
+  list.querySelectorAll("button[data-copy]").forEach((b) => { b.onclick = () => copyAssetId(b, b.dataset.copy); });
+  list.querySelectorAll("button[data-again]").forEach((b) => {
+    b.onclick = async () => {
+      b.disabled = true; b.innerHTML = '<span class="spinner"></span>';
+      const res = await post("/api/download", { id: b.dataset.again });
+      b.disabled = false; b.innerHTML = svg("refresh");
+      toast(res.ok ? "ok" : "err", res.ok ? "Saved " + esc(res.data.name) + "." : esc(friendly(res.error)));
+      if (res.ok) loadHistory();
+    };
+  });
+}
+$("#clear-hist").onclick = async () => { await post("/api/history/clear", {}); loadHistory(); };
+
+document.querySelectorAll(".seg").forEach(segThumb);
+fancySelect($("#mg-acc")); fancySelect($("#mg-to"));
+setSeg($("#mg-mode"), "m", mgMode); setSeg($("#mg-fmt"), "f", mgFmt);
+$("#side-acct").onclick = () => document.querySelector('nav button[data-tab="accounts"]').click();
+showTab("download");
+new ResizeObserver(movePill).observe(document.querySelector("nav"));
+if (document.fonts) document.fonts.ready.then(movePill);
+$("#asset-input").focus();
+checkHealth();
+setInterval(checkHealth, 30000);
+loadRecent();
+api("/api/settings").then((res) => {
+  if (!res.ok) return;
+  $("#app-version").textContent = "v" + res.data.version;
+  if (!res.data.accepted_terms) $("#terms").style.display = "flex";
+  else showChanges(false);
+});
+function mdLite(text) {
+  const inline = (x) => x.replace(/\*\*(.+?)\*\*/g, "<b>$1</b>").replace(/`([^`]+)`/g, "<code>$1</code>");
+  const out = []; let inList = false;
+  for (const raw of esc(text).split(/\r?\n/)) {
+    const l = raw.trim();
+    if (/^[-*] /.test(l)) { if (!inList) { out.push("<ul>"); inList = true; } out.push("<li>" + inline(l.slice(2)) + "</li>"); continue; }
+    if (inList) { out.push("</ul>"); inList = false; }
+    if (!l) continue;
+    const h = l.match(/^#{1,6} (.*)/);
+    out.push(h ? '<p class="h">' + inline(h[1]) + "</p>" : "<p>" + inline(l) + "</p>");
+  }
+  if (inList) out.push("</ul>");
+  return out.join("");
+}
+async function showChanges(all) {
+  const res = await api("/api/changelog" + (all ? "?all=true" : ""));
+  if (!res.ok || !res.data.length) { if (all) window.open("https://github.com/3vil17/rbxyoinker/releases", "_blank"); return; }
+  const cur = $("#app-version").textContent;
+  $("#changes-title").textContent = all ? "Changelog" : "What's new";
+  $("#changes-body").innerHTML = res.data.map((r) =>
+    '<div class="rel"><div class="tagl">' + esc(r.tag) + ("v" + r.tag.replace(/^v/, "") === cur ? "<span>you have this</span>" : "") + "</div>" +
+    (mdLite(r.notes) || "<p>No notes for this one.</p>") + "</div>").join("");
+  $("#changes").style.display = "flex";
+}
+$("#changes-ok").onclick = () => { $("#changes").style.display = "none"; post("/api/changelog/seen", {}); };
+$("#changes-link").onclick = (e) => { e.preventDefault(); showChanges(true); };
+document.addEventListener("paste", (e) => {
+  if ($("#tab-download").style.display === "none" || e.target.closest("input, textarea")) return;
+  const text = (e.clipboardData && e.clipboardData.getData("text") || "").trim();
+  if (!/\d/.test(text)) return;
+  e.preventDefault();
+  $("#asset-input").value = text;
+  doFetch();
+});
+document.addEventListener("keydown", (e) => {
+  if (e.key !== "Escape") return;
+  if ($("#ask").style.display === "flex") $("#ask-no").click();
+  else if ($("#changes").style.display === "flex") $("#changes-ok").click();
+});
+document.addEventListener("keydown", (e) => {
+  if (e.key !== "Enter" || !(e.ctrlKey || e.metaKey) || $("#tab-bulk").style.display === "none") return;
+  e.preventDefault();
+  if (!$("#bulk-start").disabled) $("#bulk-start").click();
+});
+function showOffline(title, text) {
+  if (offline) return;
+  offline = true;
+  $("#offline-title").textContent = title; $("#offline-text").textContent = text;
+  $("#offline").style.display = "flex";
+  setInterval(() => { fetch("/api/quit/check").then((r) => { if (r.ok) location.reload(); }).catch(() => {}); }, 2000);
+}
+const ping = () => post("/api/ping", {}).catch(() => { if (!updating) showOffline("rbxyoinker stopped", "Start the app again to keep going."); });
+ping(); setInterval(ping, 20000);
+document.addEventListener("visibilitychange", () => { if (!document.hidden) ping(); });
+const tabs = "BroadcastChannel" in window ? new BroadcastChannel("rbxyoinker") : null;
+if (tabs) tabs.onmessage = () => ping();
+window.addEventListener("pagehide", () => {
+  if (offline) return;
+  navigator.sendBeacon("/api/bye");
+  if (tabs) tabs.postMessage("closing");
+});
+const itsFree = new Audio("/its-free.mp3");
+$("#its-free").onclick = () => { itsFree.currentTime = 0; itsFree.play().catch(() => {}); };
+$("#quit-link").onclick = async (e) => {
+  e.preventDefault();
+  const state = await api("/api/quit/check").catch(() => null);
+  const busy = state && state.ok && state.data.busy;
+  const pick = busy ? await ask("Something is still running. Quitting now stops it.", "Quit now", "Quit when done") : true;
+  if (!pick) return;
+  if (pick === "alt") {
+    await post("/api/quit", { when_done: true }).catch(() => {});
+    $("#quit-link").textContent = "Quitting when done";
+    toast("ok", "rbxyoinker will close when it's finished.");
+    return;
+  }
+  await post("/api/quit", {}).catch(() => {});
+  window.close();
+  showOffline("rbxyoinker is closed", "You can close this tab.");
+};
+$("#terms-ok").onclick = async () => { await post("/api/accept", {}); post("/api/changelog/seen", {}); $("#terms").style.display = "none"; };
+const lastTab = store("tab");
+if (lastTab && lastTab !== "download") { const b = document.querySelector('nav button[data-tab="' + lastTab + '"]'); if (b) b.click(); }
+</script>
+</body>
+</html>
