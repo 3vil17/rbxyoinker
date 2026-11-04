@@ -21,7 +21,7 @@ dirs = "5"
 thiserror = "2"
 open = "5"
 rfd = "0.15"
-zip = { version = "2", default-features = false, features = ["deflate"] }
+zip = { version = "9", default-features = false, features = ["deflate"] }
 lz4_flex = "0.11"
 zstd = "0.13"
 getrandom = "0.2"
