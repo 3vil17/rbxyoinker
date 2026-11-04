@@ -1645,7 +1645,7 @@ dependencies = [
  "sha2",
  "thiserror 2.0.21",
  "tokio",
- "windows-sys 0.59.0",
+ "windows-sys 0.61.2",
  "winresource",
  "zip",
  "zstd",
