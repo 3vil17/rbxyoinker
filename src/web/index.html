@@ -71,6 +71,7 @@
   .nerd { margin-top: 6px; }
   .nerd summary { cursor: pointer; font-size: 0.7rem; color: rgb(136,136,136); user-select: none; }
   .nerd summary:hover { color: rgb(212,212,212); }
+  .nerd .report { display: inline-block; margin-top: 6px; font-size: 0.7rem; }
   .nerd .raw { margin-top: 6px; padding: 8px 10px; border-radius: 6px; background: rgba(0,0,0,0.25);
     font-family: monospace; font-size: 0.7rem; line-height: 1.6; color: rgb(170,170,170); word-break: break-word; }
   .st.have { background: rgba(255,255,255,0.05); color: rgb(59,186,87); }
@@ -498,7 +499,7 @@
       </nav>
       <div class="side-foot">
         <button class="acct" id="side-acct"></button>
-        <p class="foot"><span id="app-version"></span> by <a href="https://github.com/3vil17" target="_blank">3vil17</a><br><a href="https://github.com/3vil17/rbxyoinker" target="_blank">GitHub</a> · <a href="#" id="changes-link">Changelog</a> · <a href="#" id="quit-link">Quit</a><br>© 2026 3vil17 · <a href="/license" target="_blank">AGPL-3.0</a> · No warranty</p>
+        <p class="foot"><span id="app-version"></span> by <a href="https://github.com/3vil17" target="_blank">3vil17</a><br><a href="https://github.com/3vil17/rbxyoinker" target="_blank">GitHub</a> · <a href="#" id="changes-link">Changelog</a> · <a href="#" id="quit-link">Quit</a><br>© 2026 3vil17 · <a href="/license" target="_blank">AGPL-3.0</a><br>No warranty</p>
       </div>
     </aside>
 
@@ -728,6 +729,7 @@
             <div class="tile"><b data-t="left">0</b><span>left</span></div>
           </div>
           <div class="bar"><div id="mg-bar"></div></div>
+          <p class="hint" id="mg-defaults" style="display:none; margin:6px 0 0"></p>
           <div class="note" id="mg-note"></div>
           <div class="rows" id="mg-rows"></div>
         </div>
@@ -820,6 +822,10 @@
             <div class="opt">
               <div class="opt-t"><b>Save images as .png</b><span>Converts jpg and webp.</span></div>
               <label class="sw"><input type="checkbox" id="images-png" /><i></i></label>
+            </div>
+            <div class="opt">
+              <div class="opt-t"><b>Skip Roblox defaults</b><span>Bulk and Migrate leave out default skies, the baseplate grid and anything made by Roblox.</span></div>
+              <label class="sw"><input type="checkbox" id="skip-defaults" /><i></i></label>
             </div>
           </div>
         </div>
@@ -1125,9 +1131,23 @@ const FAIL_HINT = {
   "Network": "couldn't reach Roblox",
   "Other": "open a row's Details to see why",
 };
+function reportUrl(msg) {
+  const version = $("#app-version").textContent;
+  const body = [
+    "App version: " + version,
+    "Problem: " + failReason(msg),
+    "Message: " + friendly(msg),
+    "",
+    "What were you trying to do?",
+    "",
+    "",
+    "This is public. Details can show your account and game names, so only paste what you're happy to share. Never paste a cookie.",
+  ].join("\n");
+  return "https://github.com/3vil17/rbxyoinker/issues/new?title=" + encodeURIComponent(failReason(msg) + " on " + version) + "&body=" + encodeURIComponent(body);
+}
 function errHtml(msg) {
   const lines = String(msg || "").split(" | ").map((l) => '<span class="line">' + esc(l) + "</span>").join("");
-  return esc(friendly(msg)) + '<details class="nerd"><summary>Details</summary><div class="raw">' + lines + "</div></details>";
+  return esc(friendly(msg)) + '<details class="nerd"><summary>Details</summary><div class="raw">' + lines + '</div><a class="report" href="' + esc(reportUrl(msg)) + '" target="_blank">Report a problem</a></details>';
 }
 
 function store(k, v) { try { if (v === undefined) return localStorage.getItem("ryk_" + k); localStorage.setItem("ryk_" + k, v); } catch (e) { return null; } }
@@ -1253,6 +1273,7 @@ async function loadSettings() {
   $("#sort-type").checked = !!res.data.sort_by_type;
   $("#mesh-obj").checked = !!res.data.mesh_obj;
   $("#images-png").checked = !!res.data.images_png;
+  $("#skip-defaults").checked = !!res.data.skip_defaults;
   $("#name-tpl").value = res.data.name_template || "";
   namePreview();
   $("#key-saved").style.display = res.data.has_key ? "" : "none";
@@ -1514,6 +1535,8 @@ function renderMigrate() {
   if (!j || !j.items.length) return;
   const to = $("#mg-to").value;
   $("#mg-title").textContent = j.place || "Assets from Studio";
+  $("#mg-defaults").style.display = j.defaults_skipped ? "" : "none";
+  $("#mg-defaults").textContent = j.defaults_skipped + (j.defaults_skipped === 1 ? " Roblox default" : " Roblox defaults") + " left out. Turn this off in Settings.";
   const waiting = (it) => it.from_script && scriptMode !== "auto" && it.kind && it.owner !== to && it.state === "found";
   const review = j.items.filter(waiting);
   const movable = j.items.filter((it) => it.kind && it.owner !== to && (!waiting(it) || mgScriptPicked.has(it.id)));
@@ -1739,7 +1762,9 @@ async function loadPreview() {
   if (seq !== previewSeq) return preview;
   $("#preview-state").textContent = "";
   if (!res.ok) return null;
-  preview = res.data;
+  preview = res.data.filter((x) => !x.default);
+  const left = res.data.length - preview.length;
+  if (left) $("#preview-state").textContent = left + (left === 1 ? " Roblox default" : " Roblox defaults") + " left out";
   preview.forEach((x) => { if (x.thumb) thumbs[x.id] = x.thumb; accessOf[x.id] = x.access; });
   renderChips();
   return preview;
@@ -1872,6 +1897,12 @@ async function importFile(f) {
 }
 $("#bulk-cancel").onclick = () => post("/api/bulk/cancel", {});
 pollBulk().then(() => { if ($("#bulk-cancel").disabled === false) startPolling(); });
+$("#skip-defaults").onchange = async () => {
+  const res = await post("/api/settings", { skip_defaults: $("#skip-defaults").checked });
+  if (!res.ok) { toast("err", esc(res.error)); return; }
+  preview = null;
+  toast("ok", res.data.skip_defaults ? "Roblox defaults get left out of Bulk and Migrate." : "Roblox defaults stay in Bulk and Migrate.");
+};
 $("#images-png").onchange = async () => {
   const res = await post("/api/settings", { images_png: $("#images-png").checked });
   if (!res.ok) { toast("err", esc(res.error)); return; }

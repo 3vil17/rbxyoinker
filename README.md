@@ -66,6 +66,10 @@ Sounds, images, meshes and animations can be moved. **Save report** lists what m
 which old ids are still in the place. Assets you already moved get reused, so a game with
 several places doesn't upload them twice.
 
+Bulk and Migrate leave out Roblox's own assets, like the default sky and baseplate grid, and
+show how many they skipped. You can turn this off in Settings. The Download tab still gets
+them if you paste the id yourself.
+
 ## Cookies
 
 Your cookie is a full login, so don't share it with anyone. It's kept in Windows Credential
@@ -102,9 +106,17 @@ The exe ends up in `target/release/rbxyoinker.exe`.
 
 ## Security
 
-The app only listens on your own PC and refuses requests from other websites. Updates are
-checked against GitHub's hash and tested before they replace the exe. Found a problem?
-Open an issue, but leave out the details of how to exploit it.
+The app only listens on your own PC and refuses requests from other websites. Releases are
+built by GitHub Actions and signed with a key that isn't on GitHub. The app won't install an
+update unless the signature matches, so a hacked GitHub account can't push a bad update.
+
+To check a download yourself, grab `rbxyoinker.exe.minisig` from the same release and run:
+
+```
+minisign -Vm rbxyoinker.exe -P RWQIISBNpKRKRP5ILebS96X44Nh05784HVJdk71MBLHvoezrKP1rgv6t
+```
+
+Found a problem? Open an issue, but leave out the details of how to exploit it.
 
 ## Disclaimer
 

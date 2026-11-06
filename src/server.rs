@@ -442,6 +442,7 @@ async fn get_settings() -> Json<Value> {
         "mesh_obj": s.mesh_obj,
         "name_template": s.name_template,
         "images_png": s.images_png,
+        "skip_defaults": s.skip_defaults,
         "accepted_terms": s.accepted_terms,
         "scan_services": s.scan_services,
         "scan_all": store::SCAN_SERVICES,
@@ -465,6 +466,7 @@ struct SettingsBody {
     mesh_obj: Option<bool>,
     name_template: Option<String>,
     images_png: Option<bool>,
+    skip_defaults: Option<bool>,
     scan_services: Option<Vec<String>>,
     scan_skip_coregui: Option<bool>,
     script_ids: Option<String>,
@@ -499,6 +501,9 @@ async fn set_settings(Json(body): Json<SettingsBody>) -> Json<Value> {
     }
     if let Some(png) = body.images_png {
         s.images_png = png;
+    }
+    if let Some(skip) = body.skip_defaults {
+        s.skip_defaults = skip;
     }
     if let Some(list) = body.scan_services {
         s.scan_services = store::SCAN_SERVICES.iter().filter(|n| list.iter().any(|x| x == *n)).map(|n| n.to_string()).collect();
@@ -537,6 +542,7 @@ async fn set_settings(Json(body): Json<SettingsBody>) -> Json<Value> {
             "mesh_obj": s.mesh_obj,
             "name_template": s.name_template,
             "images_png": s.images_png,
+        "skip_defaults": s.skip_defaults,
         })),
         Err(e) => fail(e.to_string()),
     }
@@ -671,7 +677,7 @@ async fn update_check(State(st): State<AppState>) -> Json<Value> {
         "latest": latest.tag,
         "url": latest.url,
         "notes": clean_notes(&latest.notes),
-        "can_install": latest.exe_url.is_some(),
+        "can_install": latest.exe_url.is_some() && latest.sig_url.is_some(),
         "current": current,
     }))
 }
@@ -761,6 +767,9 @@ async fn install_update(State(st): State<AppState>) -> Json<Value> {
     let Some(url) = &latest.exe_url else {
         return fail("that release has no exe attached, download it from GitHub");
     };
+    let Some(sig_url) = &latest.sig_url else {
+        return fail("that release isn't signed, so it won't be installed. Check the GitHub page");
+    };
     let progress_st = st.clone();
     let progress = move |done: u64, total: u64| set_update(&progress_st, "download", done, total);
     let bytes = match st.rb.download_file(url, &progress).await {
@@ -771,11 +780,12 @@ async fn install_update(State(st): State<AppState>) -> Json<Value> {
     if !bytes.starts_with(b"MZ") || bytes.len() < 100_000 {
         return fail("the downloaded file doesn't look like a valid exe");
     }
-    if let Some(want) = &latest.exe_sha256 {
-        use sha2::Digest;
-        if !format!("{:x}", sha2::Sha256::digest(&bytes)).eq_ignore_ascii_case(want) {
-            return fail("the download doesn't match the one on GitHub, try again");
-        }
+    let sig = match st.rb.download_file(sig_url, &|_, _| {}).await {
+        Ok(b) => b,
+        Err(e) => return fail(e.to_string()),
+    };
+    if let Err(e) = crate::update::verify(&bytes, &sig, &latest.tag) {
+        return fail(e.to_string());
     }
     let exe = match std::env::current_exe() {
         Ok(p) => p,
@@ -1457,11 +1467,16 @@ async fn bulk_preview(State(st): State<AppState>, Json(body): Json<PreviewBody>)
     }
     let thumbs = st.rb.thumbnails(&ids).await;
     let public = st.rb.public_assets(&ids).await;
+    let skip = store::load_settings().skip_defaults;
     let items: Vec<Value> = ids
         .iter()
         .map(|id| {
             let d = st.rb.cached_details(*id);
+            let default = d.as_ref().map_or(crate::convert::is_roblox_default(*id, "", 0), |d| {
+                crate::convert::is_roblox_default(*id, &d.creator_type, d.creator_id)
+            });
             json!({
+                "default": skip && default,
                 "id": id.to_string(),
                 "name": d.as_ref().map(|d| d.name.clone()),
                 "type": d.map_or("Unknown", |d| crate::convert::type_label(d.asset_type_id)),
@@ -1649,5 +1664,28 @@ async fn reveal(Json(body): Json<RevealBody>) -> Json<Value> {
     match res {
         Ok(_) => ok(Value::Null),
         Err(e) => fail(e.to_string()),
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::io::Read;
+
+    #[test]
+    fn zip_keeps_folders_and_contents() {
+        let dir = std::env::temp_dir().join(format!("rbxyoinker-zip-{}", std::process::id()));
+        std::fs::create_dir_all(dir.join("Audio")).unwrap();
+        let file = dir.join("Audio").join("a.ogg");
+        std::fs::write(&file, b"sound bytes").unwrap();
+        let paths = [file.to_string_lossy().to_string(), dir.join("gone.png").to_string_lossy().to_string()];
+        let out = write_zip(&dir.to_string_lossy(), &paths).unwrap();
+        let mut archive = zip::ZipArchive::new(std::fs::File::open(&out).unwrap()).unwrap();
+        assert_eq!(archive.len(), 1);
+        let mut text = String::new();
+        archive.by_name("Audio/a.ogg").unwrap().read_to_string(&mut text).unwrap();
+        assert_eq!(text, "sound bytes");
+        drop(archive);
+        let _ = std::fs::remove_dir_all(&dir);
     }
 }

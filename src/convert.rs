@@ -124,3 +124,37 @@ pub fn to_png(bytes: &[u8]) -> Option<Vec<u8>> {
     img.write_to(&mut out, image::ImageFormat::Png).ok()?;
     Some(out.into_inner())
 }
+
+const DEFAULT_IDS: [i64; 12] = [
+    6372755229, 6444884337, 6444884785, 6412503613, 6444320592, 6196665106,
+    591058823, 591059876, 591058104, 591057861, 591057625, 591059642,
+];
+
+pub fn is_roblox_default(id: i64, creator_type: &str, creator_id: i64) -> bool {
+    DEFAULT_IDS.contains(&id) || (creator_id == 1 && creator_type.eq_ignore_ascii_case("user"))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::is_roblox_default;
+
+    #[test]
+    fn grid_is_default_even_without_details() {
+        assert!(is_roblox_default(6372755229, "", 0));
+    }
+
+    #[test]
+    fn roblox_account_is_default() {
+        assert!(is_roblox_default(507766388, "User", 1));
+    }
+
+    #[test]
+    fn group_one_is_not_roblox() {
+        assert!(!is_roblox_default(123, "Group", 1));
+    }
+
+    #[test]
+    fn normal_asset_is_kept() {
+        assert!(!is_roblox_default(75885924747466, "Group", 5399587));
+    }
+}
