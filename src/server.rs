@@ -1472,8 +1472,8 @@ async fn bulk_preview(State(st): State<AppState>, Json(body): Json<PreviewBody>)
         .iter()
         .map(|id| {
             let d = st.rb.cached_details(*id);
-            let default = d.as_ref().map_or(crate::convert::is_roblox_default(*id, "", 0), |d| {
-                crate::convert::is_roblox_default(*id, &d.creator_type, d.creator_id)
+            let default = d.as_ref().map_or(crate::convert::is_roblox_default(*id, 0, "", 0), |d| {
+                crate::convert::is_roblox_default(*id, d.asset_type_id, &d.creator_type, d.creator_id)
             });
             json!({
                 "default": skip && default,

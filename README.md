@@ -66,8 +66,8 @@ Sounds, images, meshes and animations can be moved. **Save report** lists what m
 which old ids are still in the place. Assets you already moved get reused, so a game with
 several places doesn't upload them twice.
 
-Bulk and Migrate leave out Roblox's own assets, like the default sky and baseplate grid, and
-show how many they skipped. You can turn this off in Settings. The Download tab still gets
+Bulk and Migrate leave out default assets, like the sky, the baseplate grid and Roblox's own
+images, sounds and animations, and show how many they skipped. You can turn this off in Settings. The Download tab still gets
 them if you paste the id yourself.
 
 ## Cookies

@@ -130,8 +130,9 @@ const DEFAULT_IDS: [i64; 12] = [
     591058823, 591059876, 591058104, 591057861, 591057625, 591059642,
 ];
 
-pub fn is_roblox_default(id: i64, creator_type: &str, creator_id: i64) -> bool {
-    DEFAULT_IDS.contains(&id) || (creator_id == 1 && creator_type.eq_ignore_ascii_case("user"))
+pub fn is_roblox_default(id: i64, asset_type_id: i64, creator_type: &str, creator_id: i64) -> bool {
+    let plain = matches!(asset_type_id, 1 | 3 | 13 | 24);
+    DEFAULT_IDS.contains(&id) || (plain && creator_id == 1 && creator_type.eq_ignore_ascii_case("user"))
 }
 
 #[cfg(test)]
@@ -140,21 +141,27 @@ mod tests {
 
     #[test]
     fn grid_is_default_even_without_details() {
-        assert!(is_roblox_default(6372755229, "", 0));
+        assert!(is_roblox_default(6372755229, 0, "", 0));
     }
 
     #[test]
-    fn roblox_account_is_default() {
-        assert!(is_roblox_default(507766388, "User", 1));
+    fn roblox_animation_is_default() {
+        assert!(is_roblox_default(507766388, 24, "User", 1));
+    }
+
+    #[test]
+    fn roblox_hats_and_places_are_kept() {
+        assert!(!is_roblox_default(1818, 9, "User", 1));
+        assert!(!is_roblox_default(1029025, 8, "User", 1));
     }
 
     #[test]
     fn group_one_is_not_roblox() {
-        assert!(!is_roblox_default(123, "Group", 1));
+        assert!(!is_roblox_default(123, 1, "Group", 1));
     }
 
     #[test]
     fn normal_asset_is_kept() {
-        assert!(!is_roblox_default(75885924747466, "Group", 5399587));
+        assert!(!is_roblox_default(75885924747466, 3, "Group", 5399587));
     }
 }

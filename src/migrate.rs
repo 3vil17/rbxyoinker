@@ -28,6 +28,8 @@ pub struct Item {
     pub script: String,
     pub line: String,
     pub reused: bool,
+    #[serde(skip)]
+    pub roblox_default: bool,
     pub reach: String,
     pub reach_error: Option<String>,
 }
@@ -86,6 +88,10 @@ pub async fn check(rb: Roblox, pool: Pool, job: Shared) {
     let names = rb.owner_names(&owners).await;
     let mut j = lock(&job);
     for (it, d) in j.items.iter_mut().zip(details) {
+        it.roblox_default = match &d {
+            Some(d) => convert::is_roblox_default(it.id, d.asset_type_id, &d.creator_type, d.creator_id),
+            None => convert::is_roblox_default(it.id, 0, "", 0),
+        };
         if let Some(d) = d {
             it.name = d.name;
             it.kind = kind_of(d.asset_type_id).to_string();
@@ -97,10 +103,7 @@ pub async fn check(rb: Roblox, pool: Pool, job: Shared) {
     j.items.retain(|it| !it.from_script || !it.kind.is_empty());
     if store::load_settings().skip_defaults {
         let before = j.items.len();
-        j.items.retain(|it| {
-            let (ctype, cid) = it.owner.split_once(':').unwrap_or(("", "0"));
-            !convert::is_roblox_default(it.id, ctype, cid.parse().unwrap_or(0))
-        });
+        j.items.retain(|it| !it.roblox_default);
         j.defaults_skipped = before - j.items.len();
     }
     j.checked = true;
