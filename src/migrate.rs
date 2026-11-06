@@ -45,6 +45,7 @@ pub struct Job {
     pub scout: String,
     pub checking: bool,
     pub audio_quota: Option<(i64, i64)>,
+    pub defaults_skipped: usize,
     pub items: Vec<Item>,
 }
 
@@ -94,6 +95,14 @@ pub async fn check(rb: Roblox, pool: Pool, job: Shared) {
         }
     }
     j.items.retain(|it| !it.from_script || !it.kind.is_empty());
+    if store::load_settings().skip_defaults {
+        let before = j.items.len();
+        j.items.retain(|it| {
+            let (ctype, cid) = it.owner.split_once(':').unwrap_or(("", "0"));
+            !convert::is_roblox_default(it.id, ctype, cid.parse().unwrap_or(0))
+        });
+        j.defaults_skipped = before - j.items.len();
+    }
     j.checked = true;
 }
 

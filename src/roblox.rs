@@ -68,22 +68,23 @@ fn parse_releases(body: &str) -> Option<Vec<Release>> {
         .iter()
         .filter(|r| r["draft"].as_bool() != Some(true) && r["prerelease"].as_bool() != Some(true))
         .filter_map(|r| {
-            let exe = r["assets"]
-                .as_array()
-                .into_iter()
-                .flatten()
-                .find(|a| a["name"].as_str().is_some_and(|n| n.to_ascii_lowercase().ends_with(".exe")));
-            let exe_url = exe.and_then(|a| a["browser_download_url"].as_str()).map(String::from);
-            let exe_sha256 = exe
-                .and_then(|a| a["digest"].as_str())
-                .and_then(|d| d.strip_prefix("sha256:"))
-                .map(String::from);
+            let asset = |suffix: &str| {
+                r["assets"]
+                    .as_array()
+                    .into_iter()
+                    .flatten()
+                    .find(|a| a["name"].as_str().is_some_and(|n| n.to_ascii_lowercase().ends_with(suffix)))
+                    .and_then(|a| a["browser_download_url"].as_str())
+                    .map(String::from)
+            };
+            let exe_url = asset(".exe");
+            let sig_url = asset(".exe.minisig");
             Some(Release {
                 tag: r["tag_name"].as_str()?.to_string(),
                 url: r["html_url"].as_str().unwrap_or_default().to_string(),
                 notes: r["body"].as_str().unwrap_or_default().to_string(),
                 exe_url,
-                exe_sha256,
+                sig_url,
             })
         })
         .collect();
@@ -124,7 +125,7 @@ pub struct Release {
     pub url: String,
     pub notes: String,
     pub exe_url: Option<String>,
-    pub exe_sha256: Option<String>,
+    pub sig_url: Option<String>,
 }
 
 pub enum Creator {

@@ -13,6 +13,7 @@ mod scan;
 mod server;
 mod store;
 mod studio;
+mod update;
 
 fn main() {
     if std::env::args().any(|a| a == "--self-test") {

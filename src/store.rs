@@ -102,6 +102,8 @@ pub struct Settings {
     pub migrate_keep: bool,
     #[serde(default)]
     pub migrate_stop_after: u32,
+    #[serde(default = "yes")]
+    pub skip_defaults: bool,
 }
 
 pub const DEFAULT_TEMPLATE: &str = "{name}_{id}";
@@ -167,6 +169,7 @@ impl Default for Settings {
             migrate_reuse: true,
             migrate_keep: false,
             migrate_stop_after: 0,
+            skip_defaults: true,
         }
     }
 }
@@ -241,4 +244,13 @@ pub fn existing_download(id: i64) -> Option<HistoryEntry> {
     load_history()
         .into_iter()
         .find(|h| h.id == id && std::path::Path::new(&h.path).exists())
+}
+
+#[cfg(test)]
+mod tests {
+    #[test]
+    fn config_stays_in_appdata_rbxdl() {
+        let want = std::path::PathBuf::from(std::env::var("APPDATA").unwrap()).join("rbxdl");
+        assert_eq!(super::config_dir(), want);
+    }
 }
