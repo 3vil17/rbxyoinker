@@ -700,6 +700,9 @@
             <button class="btn" id="mg-bulk" data-i="download">Send to Bulk</button>
           </div>
           <p class="hint" id="mg-source" style="margin:-6px 0 0"></p>
+          <div class="seg" id="mg-access-seg" style="display:none">
+            <button data-a="Both" class="on">Both</button><button data-a="Public">Public</button><button data-a="Private">Private</button>
+          </div>
           <div class="chips" id="mg-kinds"></div>
           <div class="review" id="mg-review" style="display:none">
             <div class="section-head">
@@ -1358,7 +1361,9 @@ const mgSeen = new Set(), bulkSeen = new Set();
 const mgKindsOff = new Set();
 const mgScriptPicked = new Set();
 let scriptMode = "off", mgPreviewKey = "";
-const mgThumbs = {};
+const mgThumbs = {}, mgAccess = {};
+let mgAccessPick = "Both";
+const mgAccessOk = (it) => mgAccessPick === "Both" || mgAccess[it.id] === mgAccessPick;
 const KIND_NAMES = { Audio: "Sounds", Image: "Images", Mesh: "Meshes", Animation: "Animations" };
 async function pollStudio() {
   const res = await api("/api/studio/status");
@@ -1518,14 +1523,14 @@ async function pollMigrate() {
   if (key && key !== mgPreviewKey && mgJob.items.length) {
     mgPreviewKey = key;
     post("/api/bulk/preview", { ids: mgJob.items.map((it) => String(it.id)) }).then((p) => {
-      if (p.ok) { p.data.forEach((x) => { if (x.thumb) mgThumbs[x.id] = x.thumb; }); renderMigrate(); }
+      if (p.ok) { p.data.forEach((x) => { if (x.thumb) mgThumbs[x.id] = x.thumb; mgAccess[x.id] = x.access; }); renderMigrate(); }
     });
   }
   renderMigrate();
 }
 function mgPicked() {
   const to = $("#mg-to").value;
-  return (mgJob ? mgJob.items : []).filter((it) => it.kind && !mgKindsOff.has(it.kind) && it.owner !== to && it.state !== "ok" && it.reach !== "no" &&
+  return (mgJob ? mgJob.items : []).filter((it) => it.kind && !mgKindsOff.has(it.kind) && it.owner !== to && it.state !== "ok" && it.reach !== "no" && mgAccessOk(it) &&
     (!it.from_script || scriptMode === "auto" || mgScriptPicked.has(it.id)));
 }
 function renderMigrate() {
@@ -1554,6 +1559,14 @@ function renderMigrate() {
     '<button class="chip' + (mgKindsOff.has(k) ? " off" : "") + '" data-k="' + k + '">' + KIND_NAMES[k] + " " + counts[k] + "</button>").join("");
   $("#mg-kinds").querySelectorAll(".chip").forEach((c) => {
     c.onclick = () => { const k = c.dataset.k; mgKindsOff.has(k) ? mgKindsOff.delete(k) : mgKindsOff.add(k); renderMigrate(); };
+  });
+  const acc = { Public: 0, Private: 0 };
+  movable.forEach((it) => { if (mgAccess[it.id]) acc[mgAccess[it.id]]++; });
+  $("#mg-access-seg").style.display = j.checked && acc.Public + acc.Private ? "" : "none";
+  document.querySelectorAll("#mg-access-seg button").forEach((b) => {
+    const a = b.dataset.a;
+    b.className = a === mgAccessPick ? "on" : "";
+    b.innerHTML = a + "<span>" + (a === "Both" ? acc.Public + acc.Private : acc[a]) + "</span>";
   });
   $("#mg-review").style.display = j.checked && review.length ? "" : "none";
   const ticked = review.filter((it) => mgScriptPicked.has(it.id)).length;
@@ -1592,17 +1605,18 @@ function renderMigrate() {
   setTiles("#mg-stats", moved.length, { done, moved: c.ok, failed: c.error, left: moved.length - done });
   if (j.note !== mgNote) { mgNote = j.note; if (mgNote) showNote($("#mg-note"), "err", esc(mgNote)); }
   const mgList = j.items.filter((it) => !waiting(it) || mgScriptPicked.has(it.id));
-  const mgKey = JSON.stringify([to, j.checked, [...mgKindsOff], mgList.map((it) => [it.id, it.state, it.new_id, it.error, it.name, !!mgThumbs[it.id], it.reach, it.reach_error, isBefore(it)])]);
+  const mgKey = JSON.stringify([to, j.checked, [...mgKindsOff], mgAccessPick, mgList.map((it) => [it.id, it.state, it.new_id, it.error, it.name, !!mgThumbs[it.id], mgAccess[it.id], it.reach, it.reach_error, isBefore(it)])]);
   if ($("#mg-rows").dataset.key !== mgKey) $("#mg-rows").dataset.key = mgKey, $("#mg-rows").innerHTML = mgList.map((it) => {
     const mine = it.kind && it.owner !== to;
     const reach = { ok: "reachable", no: "blocked", reuse: "reuse", checking: "checking", queued: "queued" }[it.reach];
-    const state = it.state !== "found" ? it.state : !j.checked ? "" : mine ? (mgKindsOff.has(it.kind) ? "off" : reach || "ready") : it.kind ? "there" : "stays";
+    const state = it.state !== "found" ? it.state : !j.checked ? "" : mine ? (mgKindsOff.has(it.kind) || !mgAccessOk(it) ? "off" : reach || "ready") : it.kind ? "there" : "stays";
     const why = (it.error && /in review/i.test(it.error) ? friendly(it.error) : it.error) || (it.state === "found" && it.reach_error ? friendly(it.reach_error) : "");
     return '<div class="' + rowClass(mgSeen, it.id, mgList.length) + '"' + (mine || it.state !== "found" ? "" : ' style="opacity:0.5"') + ">" +
       (mgThumbs[it.id] ? '<img class="rthumb" loading="lazy" src="' + esc(mgThumbs[it.id]) + '" alt="" />' : '<span class="rthumb"></span>') +
       '<div class="main"><div class="t">' + esc(it.name || "asset") + " <span>#" + it.id + "</span>" +
       (it.new_id ? '<span class="arrow">&rarr;</span><span style="color:rgb(59,186,87)">#' + it.new_id + "</span>" : "") +
-      (it.reused ? '<span class="tag">reused</span>' : isBefore(it) ? '<span class="tag">moved before</span>' : "") + "</div>" +
+      (it.reused ? '<span class="tag">reused</span>' : isBefore(it) ? '<span class="tag">moved before</span>' : "") +
+      (mgAccess[it.id] ? '<span class="tag' + (mgAccess[it.id] === "Public" ? " pub" : "") + '">' + mgAccess[it.id] + "</span>" : "") + "</div>" +
       (why ? '<div class="s err">' + esc(why) + "</div>"
         : '<div class="s">' + esc(it.type_label || "?") + (it.owner_name ? " · by " + esc(it.owner_name) : "") +
           (it.from_script ? ' · <span style="color:rgb(212,180,90)" title="' + esc(it.script) + '">in ' + esc(it.script.split(".").pop() || "a script") + "</span>" : "") + "</div>") +
@@ -1618,6 +1632,9 @@ function renderMigrate() {
   $("#mg-copy").disabled = !c.ok;
   $("#mg-bulk").disabled = !!j.running;
 }
+document.querySelectorAll("#mg-access-seg button").forEach((b) => {
+  b.onclick = () => { mgAccessPick = b.dataset.a; renderMigrate(); };
+});
 $("#mg-rv-rows").addEventListener("change", (e) => {
   const box = e.target.closest("input[data-id]"); if (!box) return;
   const id = Number(box.dataset.id);
