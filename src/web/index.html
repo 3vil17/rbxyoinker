@@ -320,6 +320,16 @@
   .acct-faces { display: flex; flex-shrink: 0; }
   .acct-faces img { width: 22px; height: 22px; border-radius: 50%; object-fit: cover; background: rgb(40,40,40); border: 2px solid rgb(28,30,32); }
   .acct-faces img + img { margin-left: -8px; }
+  .side-jobs { display: flex; flex-direction: column; gap: 6px; }
+  .side-job { appearance: none; display: block; width: 100%; padding: 8px 9px; border-radius: 6px; cursor: pointer; text-align: left;
+    background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.07); color: rgb(170,170,170); font-family: var(--font-sans);
+    font-size: 0.72rem; transition: 0.2s; animation: note-in 0.25s both; }
+  .side-job:hover { background: rgba(255,255,255,0.07); border-color: rgba(255,255,255,0.14); color: #fff; }
+  .side-job .sj-top { display: flex; justify-content: space-between; gap: 8px; }
+  .side-job .sj-top b { font-weight: 500; color: rgb(224,224,224); }
+  .side-job .sj-sub { margin-top: 2px; font-size: 0.66rem; color: rgb(110,110,110); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .side-job .sj-bar { height: 3px; margin-top: 7px; border-radius: 99px; background: rgba(255,255,255,0.07); overflow: hidden; }
+  .side-job .sj-bar i { display: block; height: 100%; width: 0; background: var(--green); border-radius: 99px; transition: width 0.4s; }
   .foot { text-align: left; font-size: 0.68rem; line-height: 1.75; color: rgb(102,102,102); margin: 0; padding: 0 6px; }
   .foot a:link, .foot a:visited { color: rgb(136,136,136); font-weight: 400; }
   .foot a:hover { color: #fff; opacity: 1; }
@@ -527,6 +537,7 @@
         <button data-tab="settings" data-i="settings">Settings</button>
       </nav>
       <div class="side-foot">
+        <div class="side-jobs" id="side-jobs"></div>
         <button class="acct" id="side-acct"></button>
         <p class="foot"><span id="app-version"></span> by <a href="https://github.com/3vil17" target="_blank">3vil17</a><br><a href="https://github.com/3vil17/rbxyoinker" target="_blank">GitHub</a> · <a href="#" id="changes-link">Changelog</a> · <a href="#" id="quit-link">Quit</a><br>© 2026 3vil17 · <a href="/license" target="_blank">AGPL-3.0</a><br>No warranty</p>
       </div>
@@ -2226,8 +2237,38 @@ function showOffline(title, text) {
 }
 const ping = () => post("/api/ping", {}).catch(() => { if (!updating) showOffline("rbxyoinker stopped", "Start the app again to keep going."); });
 ping(); setInterval(ping, 20000);
+function fmtLeft(s) {
+  if (s == null) return "";
+  if (s < 60) return Math.max(1, Math.round(s / 5) * 5) + "s left";
+  if (s < 3600) return Math.round(s / 60) + "m left";
+  return Math.floor(s / 3600) + "h " + Math.round((s % 3600) / 60) + "m left";
+}
+async function pollJobs() {
+  const res = await api("/api/jobs").catch(() => null);
+  const el = $("#side-jobs");
+  if (!res || !res.ok) return;
+  const rows = [];
+  const b = res.data.bulk, m = res.data.migrate;
+  if (b) rows.push({ tab: "bulk", title: "Bulk", sub: b.failed ? b.failed + " failed" : "Downloading", j: b });
+  if (m) rows.push({ tab: "migrate", title: m.checking ? "Checking" : "Migrate", sub: (m.place || "Studio") + (m.failed ? " · " + m.failed + " failed" : ""), j: m });
+  const key = rows.map((r) => r.tab).join(",");
+  if (el.dataset.key !== key) {
+    el.dataset.key = key;
+    el.innerHTML = rows.map((r) => '<button class="side-job" data-tab="' + r.tab + '"><div class="sj-top"><b>' + r.title + '</b><span class="sj-n"></span></div>' +
+      '<div class="sj-sub"></div><div class="sj-bar"><i></i></div></button>').join("");
+    el.querySelectorAll(".side-job").forEach((btn) => { btn.onclick = () => document.querySelector('nav button[data-tab="' + btn.dataset.tab + '"]').click(); });
+  }
+  rows.forEach((r, i) => {
+    const btn = el.children[i]; if (!btn) return;
+    btn.querySelector(".sj-n").textContent = r.j.done + " / " + r.j.total;
+    const left = fmtLeft(r.j.eta);
+    btn.querySelector(".sj-sub").textContent = r.sub + (left ? " · " + left : "");
+    btn.querySelector(".sj-bar i").style.width = (r.j.total ? (r.j.done / r.j.total) * 100 : 0) + "%";
+  });
+}
 setInterval(async () => {
   if (offline || updating) return;
+  pollJobs();
   const res = await api("/api/studio/inbox").catch(() => null);
   if (!res || !res.ok || !res.data.bulk.length) return;
   const box = $("#bulk-input");
