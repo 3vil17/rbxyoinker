@@ -123,6 +123,8 @@ struct Bulk {
     place: Option<i64>,
     scout: String,
     items: Vec<BulkItem>,
+    started: Option<std::time::Instant>,
+    base: usize,
 }
 
 #[derive(Serialize, Clone, Default)]
@@ -213,6 +215,7 @@ pub async fn run(updated: bool) -> std::io::Result<()> {
         .route("/api/cookies/remove-dead", post(cookies_remove_dead))
         .route("/api/bulk", post(bulk_start))
         .route("/api/bulk/status", get(bulk_status))
+        .route("/api/jobs", get(jobs))
         .route("/api/bulk/cancel", post(bulk_cancel))
         .route("/api/bulk/preview", post(bulk_preview))
         .route("/api/bulk/clear", post(bulk_clear))
@@ -755,6 +758,7 @@ const UPDATE_GATE_OPEN: &[&str] = &[
     "/api/migrate/job",
     "/api/migrate/cancel",
     "/api/studio/job",
+    "/api/jobs",
 ];
 
 fn saved_requirement() -> Option<String> {
@@ -1081,6 +1085,8 @@ async fn bulk_start(State(st): State<AppState>, Json(body): Json<BulkBody>) -> J
             place: parse_place(body.place.as_deref()),
             scout: String::new(),
             items: ids.iter().map(|&id| BulkItem { id, state: "queued", ..Default::default() }).collect(),
+            started: Some(std::time::Instant::now()),
+            base: 0,
         };
     }
     let total = ids.len();
@@ -1115,6 +1121,8 @@ async fn bulk_retry(State(st): State<AppState>, Json(body): Json<RetryBody>) -> 
         if !todo.is_empty() {
             b.running = true;
             b.cancel = false;
+            b.started = Some(std::time::Instant::now());
+            b.base = b.items.iter().filter(|it| bulk_done(it.state)).count();
         }
         todo
     };
@@ -1637,6 +1645,7 @@ async fn migrate_start(State(st): State<AppState>, Json(body): Json<MigrateStart
         j.note.clear();
         j.run_id += 1;
         j.mode = if body.mode == "map" { "map".into() } else { "swap".into() };
+        j.started = Some(std::time::Instant::now());
         j.target = body.to.clone();
         todo
     };
@@ -1682,6 +1691,7 @@ async fn migrate_check(State(st): State<AppState>, Json(body): Json<MigrateCheck
         j.running = true;
         j.checking = true;
         j.cancel = false;
+        j.started = Some(std::time::Instant::now());
         j.note.clear();
         todo
     };
@@ -1800,6 +1810,54 @@ async fn run_bulk(st: AppState, todo: Vec<usize>, workers: usize) {
         let _ = h.await;
     }
     st.bulk.lock().unwrap_or_else(|e| e.into_inner()).running = false;
+}
+
+fn bulk_done(state: &str) -> bool {
+    matches!(state, "ok" | "error" | "have" | "skipped")
+}
+
+fn eta(started: Option<std::time::Instant>, base: usize, done: usize, total: usize) -> Option<u64> {
+    let elapsed = started?.elapsed().as_secs_f64();
+    let moved = done.saturating_sub(base);
+    if moved < 2 || elapsed < 3.0 || done >= total {
+        return None;
+    }
+    Some((elapsed / moved as f64 * (total - done) as f64).ceil() as u64)
+}
+
+async fn jobs(State(st): State<AppState>) -> Json<Value> {
+    let bulk = {
+        let b = st.bulk.lock().unwrap_or_else(|e| e.into_inner());
+        b.running.then(|| {
+            let total = b.items.len();
+            let done = b.items.iter().filter(|it| bulk_done(it.state)).count();
+            let failed = b.items.iter().filter(|it| it.state == "error").count();
+            json!({ "total": total, "done": done, "failed": failed, "eta": eta(b.started, b.base, done, total) })
+        })
+    };
+    let migrate = {
+        let j = crate::migrate::lock(&st.migrate);
+        j.running.then(|| {
+            let (total, done, failed) = if j.checking {
+                let asked: Vec<&str> = j.items.iter().map(|it| it.reach.as_str()).filter(|r| !r.is_empty()).collect();
+                let done = asked.iter().filter(|r| !matches!(**r, "queued" | "checking")).count();
+                (asked.len(), done, asked.iter().filter(|r| **r == "no").count())
+            } else {
+                let moving: Vec<&str> = j.items.iter().map(|it| it.state.as_str()).filter(|s| *s != "found").collect();
+                let failed = moving.iter().filter(|s| **s == "error").count();
+                (moving.len(), moving.iter().filter(|s| **s == "ok").count() + failed, failed)
+            };
+            json!({
+                "checking": j.checking,
+                "place": j.place,
+                "total": total,
+                "done": done,
+                "failed": failed,
+                "eta": eta(j.started, 0, done, total),
+            })
+        })
+    };
+    ok(json!({ "bulk": bulk, "migrate": migrate }))
 }
 
 async fn bulk_status(State(st): State<AppState>) -> Json<Value> {
@@ -2034,6 +2092,16 @@ async fn reveal(Json(body): Json<RevealBody>) -> Json<Value> {
 mod tests {
     use super::*;
     use std::io::Read;
+
+    #[test]
+    fn eta_needs_progress_and_counts_from_base() {
+        let ten_s_ago = std::time::Instant::now().checked_sub(std::time::Duration::from_secs(10));
+        assert_eq!(eta(None, 0, 5, 10), None);
+        assert_eq!(eta(ten_s_ago, 0, 1, 10), None);
+        assert_eq!(eta(ten_s_ago, 0, 10, 10), None);
+        assert!(matches!(eta(ten_s_ago, 0, 5, 10), Some(10 | 11)));
+        assert!(matches!(eta(ten_s_ago, 4, 6, 8), Some(10 | 11)));
+    }
 
     #[test]
     fn insertable_picks_models_and_animated_heads() {
