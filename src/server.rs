@@ -231,6 +231,10 @@ pub async fn run(updated: bool) -> std::io::Result<()> {
         .route("/api/studio/ping", post(studio_ping))
         .route("/api/studio/unpair", post(studio_unpair))
         .route("/api/studio/show", post(studio_show))
+        .route("/api/studio/insert", post(studio_insert))
+        .route("/api/studio/file", get(studio_file))
+        .route("/api/studio/bulk", post(studio_bulk))
+        .route("/api/studio/inbox", get(studio_inbox))
         .route("/api/migrate/job", get(migrate_job))
         .route("/api/migrate/targets", get(migrate_targets))
         .route("/api/migrate/account-check", get(migrate_account_check))
@@ -421,6 +425,7 @@ async fn download_asset(State(st): State<AppState>, Json(body): Json<DownloadBod
             "method": info.method,
             "place_id": info.place_id,
             "account": info.account,
+            "insertable": insertable(&info.path).is_some(),
             "path": info.path,
         })),
         Err(e) => fail(e.to_string()),
@@ -703,6 +708,8 @@ const KEY_OPEN: &[&str] = &[
     "/api/studio/scan",
     "/api/studio/ping",
     "/api/studio/unpair",
+    "/api/studio/file",
+    "/api/studio/bulk",
 ];
 
 fn new_key() -> String {
@@ -1363,9 +1370,14 @@ async fn studio_job(State(st): State<AppState>, headers: axum::http::HeaderMap) 
     }
     let mut job = json!(*crate::migrate::lock(&st.migrate));
     job["version"] = json!(env!("CARGO_PKG_VERSION"));
-    let show = std::mem::take(&mut crate::studio::lock(&st.studio).show);
+    let mut p = crate::studio::lock(&st.studio);
+    let show = std::mem::take(&mut p.show);
     if !show.is_empty() {
         job["show"] = json!(show);
+    }
+    let inserts = std::mem::take(&mut p.inserts);
+    if !inserts.is_empty() {
+        job["insert"] = json!(inserts.iter().map(|(n, name)| json!({ "n": n, "name": name })).collect::<Vec<_>>());
     }
     ok(job).into_response()
 }
@@ -1393,6 +1405,10 @@ async fn studio_ping(
     let show = std::mem::take(&mut p.show);
     if !show.is_empty() {
         pong["show"] = json!(show);
+    }
+    let inserts = std::mem::take(&mut p.inserts);
+    if !inserts.is_empty() {
+        pong["insert"] = json!(inserts.iter().map(|(n, name)| json!({ "n": n, "name": name })).collect::<Vec<_>>());
     }
     ok(pong).into_response()
 }
@@ -1427,6 +1443,100 @@ async fn studio_show(State(st): State<AppState>, Json(body): Json<ShowBody>) -> 
     let live = p.last_seen.is_some_and(|t| t.elapsed() < std::time::Duration::from_secs(15));
     p.show = ids;
     ok(json!({ "live": live }))
+}
+
+fn insertable(path: &str) -> Option<std::path::PathBuf> {
+    let p = std::path::Path::new(path.trim());
+    let ext = p.extension().and_then(|e| e.to_str()).unwrap_or("").to_ascii_lowercase();
+    if (ext == "rbxm" || ext == "rbxmx") && p.is_file() {
+        return Some(p.to_path_buf());
+    }
+    let stem = p.file_stem()?.to_str()?;
+    let animated = p.with_file_name(format!("{stem}_Animated.rbxm"));
+    animated.is_file().then_some(animated)
+}
+
+#[derive(Deserialize)]
+struct InsertBody {
+    path: String,
+}
+
+async fn studio_insert(State(st): State<AppState>, Json(body): Json<InsertBody>) -> Json<Value> {
+    let Some(file) = insertable(&body.path) else {
+        return fail("only models (.rbxm or .rbxmx) can go into Studio");
+    };
+    let mut p = crate::studio::lock(&st.studio);
+    if !p.connected() {
+        return fail("Studio isn't paired, connect the plugin first");
+    }
+    let live = p.last_seen.is_some_and(|t| t.elapsed() < std::time::Duration::from_secs(15));
+    p.next_file += 1;
+    let n = p.next_file;
+    let name = file.file_stem().and_then(|s| s.to_str()).unwrap_or("model").to_string();
+    p.files.push((n, file));
+    if p.files.len() > 20 {
+        p.files.remove(0);
+    }
+    p.inserts.push((n, name));
+    ok(json!({ "live": live }))
+}
+
+#[derive(Deserialize)]
+struct FileQ {
+    n: u64,
+}
+
+async fn studio_file(
+    State(st): State<AppState>,
+    headers: axum::http::HeaderMap,
+    Query(q): Query<FileQ>,
+) -> axum::response::Response {
+    let file = {
+        let mut p = crate::studio::lock(&st.studio);
+        if !p.check(studio_token(&headers).as_deref()) {
+            return unpaired();
+        }
+        p.files.iter().find(|(n, _)| *n == q.n).map(|(_, f)| f.clone())
+    };
+    let Some(file) = file else {
+        return (axum::http::StatusCode::NOT_FOUND, "gone").into_response();
+    };
+    match std::fs::read(&file) {
+        Ok(bytes) => ([(axum::http::header::CONTENT_TYPE, "application/octet-stream")], bytes).into_response(),
+        Err(_) => (axum::http::StatusCode::NOT_FOUND, "gone").into_response(),
+    }
+}
+
+#[derive(Deserialize)]
+struct StudioBulk {
+    ids: Vec<String>,
+}
+
+async fn studio_bulk(
+    State(st): State<AppState>,
+    headers: axum::http::HeaderMap,
+    Json(body): Json<StudioBulk>,
+) -> axum::response::Response {
+    let mut p = crate::studio::lock(&st.studio);
+    if !p.check(studio_token(&headers).as_deref()) {
+        return unpaired();
+    }
+    let mut ids: Vec<String> = Vec::new();
+    for raw in &body.ids {
+        if let Some(id) = raw.trim().parse::<i64>().ok().filter(|id| *id > 0).map(|id| id.to_string()) {
+            if !ids.contains(&id) {
+                ids.push(id);
+            }
+        }
+    }
+    let count = ids.len();
+    p.bulk = ids;
+    ok(json!({ "count": count, "version": env!("CARGO_PKG_VERSION") })).into_response()
+}
+
+async fn studio_inbox(State(st): State<AppState>) -> Json<Value> {
+    let bulk = std::mem::take(&mut crate::studio::lock(&st.studio).bulk);
+    ok(json!({ "bulk": bulk }))
 }
 
 async fn migrate_job(State(st): State<AppState>) -> Json<Value> {
@@ -1924,6 +2034,23 @@ async fn reveal(Json(body): Json<RevealBody>) -> Json<Value> {
 mod tests {
     use super::*;
     use std::io::Read;
+
+    #[test]
+    fn insertable_picks_models_and_animated_heads() {
+        let dir = std::env::temp_dir().join(format!("rbxyoinker-insert-{}", std::process::id()));
+        std::fs::create_dir_all(&dir).unwrap();
+        let model = dir.join("Chair.rbxm");
+        let head = dir.join("Head.obj");
+        let png = dir.join("Decal.png");
+        for f in [&model, &head, &png, &dir.join("Head_Animated.rbxm")] {
+            std::fs::write(f, b"x").unwrap();
+        }
+        assert_eq!(insertable(&model.to_string_lossy()), Some(model.clone()));
+        assert_eq!(insertable(&head.to_string_lossy()), Some(dir.join("Head_Animated.rbxm")));
+        assert_eq!(insertable(&png.to_string_lossy()), None);
+        assert_eq!(insertable(&dir.join("missing.rbxm").to_string_lossy()), None);
+        let _ = std::fs::remove_dir_all(&dir);
+    }
 
     #[test]
     fn zip_keeps_folders_and_contents() {

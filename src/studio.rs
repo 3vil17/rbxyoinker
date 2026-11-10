@@ -20,6 +20,10 @@ pub struct Pairing {
     pub last_seen: Option<Instant>,
     pub place: String,
     pub show: Vec<String>,
+    pub bulk: Vec<String>,
+    pub inserts: Vec<(u64, String)>,
+    pub files: Vec<(u64, std::path::PathBuf)>,
+    pub next_file: u64,
 }
 
 pub type Shared = Arc<Mutex<Pairing>>;

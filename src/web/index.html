@@ -1262,9 +1262,16 @@ async function loadRecent() {
     '<div class="row"><div class="main"><div class="t">' + esc(h.name) + " <span>#" + h.id + "</span></div>" +
     '<div class="s">' + esc(h.type_label) + " · " + esc(fmtWhen(h.when)) + "</div></div>" +
     '<button class="btn" data-c="' + i + '" title="Copy as rbxassetid://">' + svg("copy") + "</button>" +
+    (/\.rbxmx?$/i.test(h.path || "") ? '<button class="btn" data-ins="' + i + '" title="Insert into Studio">' + svg("box") + "</button>" : "") +
     '<button class="btn" data-r="' + i + '" title="Show in folder">' + svg("folder") + "</button></div>").join("");
+  $("#recent-list").querySelectorAll("button[data-ins]").forEach((b) => { b.onclick = () => insertIntoStudio($("#dl-note"), rows[b.dataset.ins].path); });
   $("#recent-list").querySelectorAll("button[data-r]").forEach((b) => { b.onclick = () => post("/api/reveal", { path: rows[b.dataset.r].path }); });
   $("#recent-list").querySelectorAll("button[data-c]").forEach((b) => { b.onclick = () => copyAssetId(b, rows[b.dataset.c].id); });
+}
+async function insertIntoStudio(noteEl, path) {
+  const res = await post("/api/studio/insert", { path });
+  if (!res.ok) { showNote(noteEl, "err", esc(res.error)); return; }
+  showNote(noteEl, "info", res.data.live ? "Inserting it into Studio." : "Studio isn't open, it goes in when the plugin connects.");
 }
 async function copyAssetId(btn, id) {
   try { await navigator.clipboard.writeText("rbxassetid://" + id); } catch (e) { return; }
@@ -1322,8 +1329,10 @@ async function doDownload() {
   const d = res.data;
   showNote($("#dl-note"), "ok",
     "Saved <b>" + esc(d.name) + "</b> via <b>" + esc(d.method) + "</b><br><code>" + esc(d.path) + "</code>" +
-    '<div class="acts"><button class="btn" id="reveal-btn">' + svg("folder") + ' Show in folder</button></div>');
+    '<div class="acts"><button class="btn" id="reveal-btn">' + svg("folder") + ' Show in folder</button>' +
+    (d.insertable ? ' <button class="btn" id="insert-btn">' + svg("box") + " Insert into Studio</button>" : "") + "</div>");
   const rb = $("#reveal-btn"); if (rb) rb.onclick = () => post("/api/reveal", { path: d.path });
+  const ib = $("#insert-btn"); if (ib) ib.onclick = () => insertIntoStudio($("#dl-note"), d.path);
   loadRecent();
 }
 $("#play-btn").onclick = () => {
@@ -2217,6 +2226,16 @@ function showOffline(title, text) {
 }
 const ping = () => post("/api/ping", {}).catch(() => { if (!updating) showOffline("rbxyoinker stopped", "Start the app again to keep going."); });
 ping(); setInterval(ping, 20000);
+setInterval(async () => {
+  if (offline || updating) return;
+  const res = await api("/api/studio/inbox").catch(() => null);
+  if (!res || !res.ok || !res.data.bulk.length) return;
+  const box = $("#bulk-input");
+  box.value = res.data.bulk.join(String.fromCharCode(10));
+  document.querySelector('nav button[data-tab="bulk"]').click();
+  box.dispatchEvent(new Event("input"));
+  toast("ok", "Got " + res.data.bulk.length + " ids from Studio.");
+}, 2000);
 document.addEventListener("visibilitychange", () => { if (!document.hidden) ping(); });
 const tabs = "BroadcastChannel" in window ? new BroadcastChannel("rbxyoinker") : null;
 if (tabs) tabs.onmessage = () => ping();

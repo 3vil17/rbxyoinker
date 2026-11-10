@@ -6,6 +6,7 @@ local AssetService = game:GetService("AssetService")
 local RunService = game:GetService("RunService")
 local TweenService = game:GetService("TweenService")
 local Selection = game:GetService("Selection")
+local SerializationService = game:GetService("SerializationService")
 
 if not RunService:IsEdit() then
 	return
@@ -496,9 +497,16 @@ local lastScan = hintTemplate:Clone()
 lastScan.TextSize = 12
 lastScan.Text = ""
 lastScan.Visible = false
-lastScan.LayoutOrder = 6
+lastScan.LayoutOrder = 7
 tone(lastScan, { TextColor3 = "dim" })
 lastScan.Parent = scanCard
+
+local bulkButton = buttonTemplate:Clone()
+setIcon(bulkButton.Icon, icons.move)
+bulkButton.Label.Text = "Download selection"
+bulkButton.LayoutOrder = 6
+bulkButton.Visible = false
+bulkButton.Parent = scanCard
 
 local progressCard = cardTemplate:Clone()
 progressCard.LayoutOrder = 4
@@ -618,7 +626,7 @@ footer.LayoutOrder = 6
 tone(footer, { TextColor3 = "dim" })
 footer.Parent = root
 
-local hoverable = { connectButton, scanButton, applyButton, leftButton, disconnectButton }
+local hoverable = { connectButton, scanButton, bulkButton, applyButton, leftButton, disconnectButton }
 for _, button in hoverable do
 	button.MouseEnter:Connect(function()
 		local base = button:GetAttribute("ToneBackgroundColor3")
@@ -789,6 +797,7 @@ local function showScope()
 	tone(segButtons.place, { TextColor3 = scope == "place" and "bright" or "muted" })
 	tone(segButtons.selection, { TextColor3 = scope == "selection" and "bright" or (has and "muted" or "placeholder") })
 	scopeHint.Visible = not has
+	bulkButton.Visible = has
 	if not spinners[scanButton] then
 		scanButton.Label.Text = scope == "place" and "Scan place" or "Scan selection"
 	end
@@ -860,9 +869,9 @@ local function call(method, path, body, quiet)
 	return decoded.data
 end
 
-local function scan(config)
-	refs = {}
-	scriptRefs = {}
+local function scan(config, roots)
+	local foundRefs = {}
+	local foundScripts = {}
 	local ids = {}
 	local seen = {}
 	local inProps = {}
@@ -877,9 +886,9 @@ local function scan(config)
 	end
 	local everything = {}
 	local services = game:GetChildren()
-	if scope == "selection" then
+	if roots then
 		services = {}
-		for _, chosen in Selection:Get() do
+		for _, chosen in roots do
 			table.insert(everything, chosen)
 			local ok, list = pcall(chosen.GetDescendants, chosen)
 			if ok then
@@ -915,7 +924,7 @@ local function scan(config)
 				end)
 				local digits = ok and typeof(value) == "string" and string.match(value, "%d%d%d+")
 				if digits then
-					table.insert(refs, { instance = inst, prop = prop, id = digits })
+					table.insert(foundRefs, { instance = inst, prop = prop, id = digits })
 					inProps[digits] = true
 					if not seen[digits] then
 						seen[digits] = true
@@ -945,7 +954,7 @@ local function scan(config)
 					end
 				end
 				if found then
-					table.insert(scriptRefs, inst)
+					table.insert(foundScripts, inst)
 				end
 			end
 		end
@@ -956,7 +965,7 @@ local function scan(config)
 			table.insert(fromScripts, { id = digits, script = where.script, line = where.line })
 		end
 	end
-	return { ids = ids, fromScripts = fromScripts }
+	return { ids = ids, fromScripts = fromScripts, refs = foundRefs, scriptRefs = foundScripts }
 end
 
 local function usersOf(wanted)
@@ -1012,6 +1021,50 @@ local function selectIds(ids, label)
 		setStatus("Nothing in this place uses " .. label .. " anymore.")
 	else
 		setStatus("Selected " .. #found .. (#found == 1 and " instance" or " instances") .. " using " .. label .. ".", "ok")
+	end
+end
+
+local function insertModels(list)
+	local inserted = {}
+	local failed = 0
+	local camera = workspace.CurrentCamera
+	local spot = camera and (camera.CFrame * CFrame.new(0, 0, -20)).Position or Vector3.zero
+	local recording = ChangeHistoryService:TryBeginRecording("rbxyoinker insert")
+	for _, ticket in list do
+		local ok, res = pcall(HttpService.RequestAsync, HttpService, {
+			Url = serverUrl .. "/api/studio/file?n=" .. tostring(ticket.n),
+			Method = "GET",
+			Headers = { ["X-Yoinker-Token"] = token },
+		})
+		local items = nil
+		if ok and res.StatusCode == 200 then
+			local loaded, result = pcall(SerializationService.DeserializeInstancesAsync, SerializationService, buffer.fromstring(res.Body))
+			items = loaded and result or nil
+		end
+		if typeof(items) == "table" and #items > 0 then
+			for _, item in items do
+				item.Parent = workspace
+				if item:IsA("PVInstance") then
+					pcall(item.PivotTo, item, CFrame.new(spot))
+				end
+				table.insert(inserted, item)
+			end
+		else
+			failed += 1
+		end
+	end
+	if recording then
+		ChangeHistoryService:FinishRecording(recording, Enum.FinishRecordingOperation.Commit)
+	end
+	if #inserted > 0 then
+		Selection:Set(inserted)
+	end
+	if failed > 0 then
+		setStatus("Couldn't load " .. failed .. (failed == 1 and " model" or " models") .. " from rbxyoinker.", "err")
+	elseif #list == 1 then
+		setStatus("Inserted " .. tostring(list[1].name) .. ". Ctrl+Z undoes it.", "ok")
+	else
+		setStatus("Inserted " .. #list .. " models. Ctrl+Z undoes it.", "ok")
 	end
 end
 
@@ -1157,7 +1210,10 @@ local function scanAndSend()
 	setBusy(scanButton, "Scanning ...")
 	setStatus("")
 	local config = call("GET", "/api/studio/scan")
-	local found = config and scan(config) or { ids = {}, fromScripts = {} }
+	local found = config and scan(config, scope == "selection" and Selection:Get() or nil)
+		or { ids = {}, fromScripts = {}, refs = {}, scriptRefs = {} }
+	refs = found.refs
+	scriptRefs = found.scriptRefs
 	local ids = found.ids
 	local fromScripts = found.fromScripts
 	local sent = nil
@@ -1183,6 +1239,27 @@ end
 connectButton.MouseButton1Click:Connect(connect)
 scanButton.MouseButton1Click:Connect(scanAndSend)
 applyButton.MouseButton1Click:Connect(applySwaps)
+
+bulkButton.MouseButton1Click:Connect(function()
+	if busy or #Selection:Get() == 0 then
+		return
+	end
+	busy = true
+	setBusy(bulkButton, "Reading ...")
+	local config = call("GET", "/api/studio/scan")
+	local found = config and scan(config, Selection:Get())
+	local sent = nil
+	if found and #found.ids == 0 then
+		setStatus("No asset ids found in the selection.")
+	elseif found then
+		sent = call("POST", "/api/studio/bulk", { ids = found.ids })
+	end
+	setBusy(bulkButton, nil)
+	busy = false
+	if sent then
+		setStatus("Sent " .. sent.count .. " ids to rbxyoinker's Bulk tab.", "ok")
+	end
+end)
 
 leftButton.MouseButton1Click:Connect(function()
 	if busy or #leftovers == 0 then
@@ -1239,12 +1316,18 @@ task.spawn(function()
 					if job.show then
 						selectIds(job.show, #job.show == 1 and ("#" .. job.show[1]) or (#job.show .. " ids"))
 					end
+					if job.insert then
+						insertModels(job.insert)
+					end
 				end
 				task.wait(2)
 			else
 				local pong = call("POST", "/api/studio/ping", { place = game.Name, place_id = game.PlaceId }, true)
 				if pong and pong.show then
 					selectIds(pong.show, #pong.show == 1 and ("#" .. pong.show[1]) or (#pong.show .. " ids"))
+				end
+				if pong and pong.insert then
+					insertModels(pong.insert)
 				end
 				task.wait(5)
 			end
