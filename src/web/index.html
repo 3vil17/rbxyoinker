@@ -3,6 +3,7 @@
 <html lang="en">
 <head>
 <meta charset="utf-8" />
+<meta name="yoinker-key" content="__YOINKER_KEY__" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
 <title>rbxyoinker</title>
 <link rel="icon" type="image/png" href="/logo.png" />
@@ -917,9 +918,13 @@
 <script>
 const $ = (s) => document.querySelector(s);
 let offline = false, updating = false;
+const KEY = (document.querySelector('meta[name="yoinker-key"]') || {}).content || "";
 async function api(path, opts) {
+  opts = opts || {};
+  opts.headers = Object.assign({}, opts.headers, { "x-yoinker-key": KEY });
   const r = await fetch(path, opts);
   const j = await r.json();
+  if (r.status === 401 && j && j.bad_key) { location.reload(); return j; }
   if (j && j.update_required) setTimeout(checkUpdate, 0);
   return j;
 }
@@ -1270,7 +1275,7 @@ $("#play-btn").onclick = () => {
   if (!current) return;
   const pl = $("#player");
   const place = $("#place-input").value.trim();
-  pl.src = "/api/raw?id=" + current.id + (place ? "&place=" + encodeURIComponent(place) : ""); pl.style.display = "block";
+  pl.src = "/api/raw?key=" + KEY + "&id=" + current.id + (place ? "&place=" + encodeURIComponent(place) : ""); pl.style.display = "block";
   pl.play().catch(() => showNote($("#dl-note"), "err", "Couldn't load this audio with your current credentials."));
   pl.onerror = () => showNote($("#dl-note"), "err", "Couldn't load this audio with your current credentials.");
 };
@@ -1908,7 +1913,7 @@ $("#scan-file").onchange = () => {
 async function importFile(f) {
   if (!/\.rbx[lm]x?$/i.test(f.name)) { showNote($("#bulk-note"), "err", "Drop a .rbxl, .rbxm, .rbxlx or .rbxmx file."); return; }
   showNote($("#bulk-note"), "info", "Scanning <b>" + esc(f.name) + "</b>…");
-  const r = await fetch("/api/scan-file", { method: "POST", body: f });
+  const r = await fetch("/api/scan-file", { method: "POST", body: f, headers: { "x-yoinker-key": KEY } });
   const res = await r.json().catch(() => ({ ok: false, error: "scan failed" }));
   if (!res.ok) { showNote($("#bulk-note"), "err", esc(res.error)); return; }
   const have = new Set(splitIds($("#bulk-input").value));
@@ -2134,7 +2139,7 @@ const tabs = "BroadcastChannel" in window ? new BroadcastChannel("rbxyoinker") :
 if (tabs) tabs.onmessage = () => ping();
 window.addEventListener("pagehide", () => {
   if (offline) return;
-  navigator.sendBeacon("/api/bye");
+  navigator.sendBeacon("/api/bye?key=" + KEY);
   if (tabs) tabs.postMessage("closing");
 });
 const itsFree = new Audio("/its-free.mp3");
