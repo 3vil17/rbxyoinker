@@ -167,6 +167,18 @@ impl Roblox {
         self.cache.lock().unwrap_or_else(|e| e.into_inner())
     }
 
+    pub async fn get_json(&self, url: &str, cookie: Option<&str>) -> Option<Value> {
+        let mut req = self.http.get(url);
+        if let Some(c) = cookie {
+            req = req.roblox_cookie(c);
+        }
+        let resp = req.send().await.ok()?;
+        if !resp.status().is_success() {
+            return None;
+        }
+        resp.json().await.ok()
+    }
+
     pub async fn user_groups(&self, user_id: i64) -> Vec<GroupRef> {
         if let Some(v) = fresh(self.cache().groups.get(&user_id)) {
             return v;

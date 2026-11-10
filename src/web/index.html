@@ -719,6 +719,14 @@
             <div class="field"><label>Move to</label><select id="mg-to"></select></div>
           </div>
           <p class="hint" id="mg-audio" style="display:none"></p>
+          <div class="note err" id="mg-main">
+            <b>This account looks like a main account.</b> We strongly recommend not using it for reuploads. If Roblox moderation flags an upload, the account that uploads it takes the strike, even when it goes to a group. Use an alt instead.
+            <span class="line" id="mg-main-why"></span>
+            <div class="opt" style="border-top:0; padding:8px 0 0">
+              <div class="opt-t"><b>Use this account anyway</b><span>Only if you're sure every asset is safe to upload.</span></div>
+              <label class="sw"><input type="checkbox" id="mg-main-ok" /><i></i></label>
+            </div>
+          </div>
           <div class="fbtns">
             <button class="btn" id="mg-check" data-i="search">Check first</button>
             <button class="btn main" id="mg-start" data-i="move">Move assets</button>
@@ -1487,6 +1495,7 @@ async function loadTargets() {
   $("#mg-acc-row").style.display = one ? "none" : "";
   $("#mg-fields").classList.toggle("one", one);
   fillTargets();
+  checkMainAccount();
 }
 function mgAccount() { return mgTargets.find((t) => String(t.user_id) === $("#mg-acc").value) || mgTargets[0]; }
 function fillTargets() {
@@ -1500,6 +1509,19 @@ function fillTargets() {
   renderMigrate();
 }
 $("#mg-acc").onchange = fillTargets;
+const mgMainChecks = {};
+async function checkMainAccount() {
+  const a = mgAccount(); const box = $("#mg-main");
+  if (!a) { box.classList.remove("show"); return; }
+  if (!mgMainChecks[a.user_id]) mgMainChecks[a.user_id] = api("/api/migrate/account-check?user_id=" + a.user_id).catch(() => null);
+  const res = await mgMainChecks[a.user_id];
+  if (mgAccount() !== a) return;
+  const main = !!(res && res.ok && res.data.looks_main);
+  box.classList.toggle("show", main);
+  $("#mg-main-ok").checked = false;
+  if (main) $("#mg-main-why").textContent = "@" + a.username + ": " + res.data.reasons.join(", ") + ".";
+}
+$("#mg-acc").addEventListener("change", checkMainAccount);
 $("#mg-to").onchange = () => renderMigrate();
 document.querySelectorAll("#mg-mode button").forEach((b) => {
   b.onclick = () => { mgMode = b.dataset.m; store("mgmode", mgMode); setSeg($("#mg-mode"), "m", mgMode); };
@@ -1674,6 +1696,11 @@ $("#mg-bulk").onclick = () => {
 };
 $("#mg-start").onclick = async () => {
   const a = mgAccount(); if (!a) return;
+  if ($("#mg-main").classList.contains("show") && !$("#mg-main-ok").checked) {
+    showNote($("#mg-note"), "err", "Turn on <b>Use this account anyway</b> first, or pick an alt in Account.");
+    $("#mg-main").scrollIntoView({ block: "nearest", behavior: "smooth" });
+    return;
+  }
   const ids = mgPicked().map((it) => String(it.id));
   const res = await post("/api/migrate/start", { user_id: a.user_id, to: $("#mg-to").value, ids, mode: mgMode });
   if (!res.ok) { showNote($("#mg-note"), "err", esc(res.error)); return; }
