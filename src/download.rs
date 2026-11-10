@@ -61,6 +61,60 @@ async fn explain(rb: &Roblox, id: i64, err: Error) -> Error {
     }
 }
 
+const HEADS: [i64; 2] = [17, 79];
+
+fn write_mesh_extras(path: &std::path::Path, bytes: &[u8], settings: &store::Settings) {
+    if !settings.mesh_obj && !settings.mesh_glb {
+        return;
+    }
+    let Ok(mesh) = rbxmesh::read(bytes) else { return };
+    if settings.mesh_obj {
+        if let Ok(obj) = rbxmesh::to_obj(&mesh, 0) {
+            let _ = std::fs::write(path.with_extension("obj"), obj);
+        }
+    }
+    if settings.mesh_glb {
+        if let Ok(glb) = rbxmesh::to_glb(&mesh, 0) {
+            let _ = std::fs::write(path.with_extension("glb"), glb);
+        }
+    }
+}
+
+async fn save_dynamic_head(
+    rb: &Roblox,
+    api_key: Option<&str>,
+    pool: &Pool,
+    id: i64,
+    hint: Option<i64>,
+    full: &std::path::Path,
+    settings: &store::Settings,
+) -> bool {
+    let Some(cookie) = pool.alive_users().into_iter().find_map(|(uid, _, _)| pool.cookie_for_user(uid)) else {
+        return false;
+    };
+    let Some(model) = rb.fetch_format(&cookie, id, "avatar_meshpart_head").await else { return false };
+    if !model.starts_with(b"<roblox") {
+        return false;
+    }
+    let (Some(dir), Some(stem)) = (full.parent(), full.file_stem().map(|s| s.to_string_lossy().to_string())) else {
+        return false;
+    };
+    if std::fs::write(dir.join(format!("{stem}_Animated.rbxm")), &model).is_err() {
+        return false;
+    }
+    for inner in crate::scan::asset_ids(&model).into_iter().filter(|&i| i != id) {
+        let Ok(found) = resolver::resolve(rb, api_key, pool, inner, None, None, hint).await else { continue };
+        if rbxmesh::is_mesh(&found.bytes) {
+            let mesh_path = dir.join(format!("{stem}_Animated.mesh"));
+            if std::fs::write(&mesh_path, &found.bytes).is_ok() {
+                write_mesh_extras(&mesh_path, &found.bytes, settings);
+            }
+            break;
+        }
+    }
+    true
+}
+
 pub async fn fetch_and_save(
     rb: &Roblox,
     api_key: Option<&str>,
@@ -118,19 +172,11 @@ pub async fn fetch_and_save(
     std::fs::create_dir_all(&dir)?;
     let full = dir.join(&filename);
     std::fs::write(&full, &attempt.bytes)?;
-    if ext == "mesh" && (settings.mesh_obj || settings.mesh_glb) {
-        if let Ok(mesh) = rbxmesh::read(&attempt.bytes) {
-            if settings.mesh_obj {
-                if let Ok(obj) = rbxmesh::to_obj(&mesh, 0) {
-                    let _ = std::fs::write(full.with_extension("obj"), obj);
-                }
-            }
-            if settings.mesh_glb {
-                if let Ok(glb) = rbxmesh::to_glb(&mesh, 0) {
-                    let _ = std::fs::write(full.with_extension("glb"), glb);
-                }
-            }
-        }
+    if ext == "mesh" {
+        write_mesh_extras(&full, &attempt.bytes, settings);
+    }
+    if HEADS.contains(&atype0) && version.is_none() && save_dynamic_head(rb, api_key, pool, id, hint, &full, settings).await {
+        attempt.method.push_str(" + animated head");
     }
     let path = full.to_string_lossy().to_string();
 
