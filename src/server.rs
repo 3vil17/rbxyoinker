@@ -230,6 +230,7 @@ pub async fn run(updated: bool) -> std::io::Result<()> {
         .route("/api/studio/scan", get(studio_scan))
         .route("/api/studio/ping", post(studio_ping))
         .route("/api/studio/unpair", post(studio_unpair))
+        .route("/api/studio/show", post(studio_show))
         .route("/api/migrate/job", get(migrate_job))
         .route("/api/migrate/targets", get(migrate_targets))
         .route("/api/migrate/account-check", get(migrate_account_check))
@@ -1362,6 +1363,10 @@ async fn studio_job(State(st): State<AppState>, headers: axum::http::HeaderMap) 
     }
     let mut job = json!(*crate::migrate::lock(&st.migrate));
     job["version"] = json!(env!("CARGO_PKG_VERSION"));
+    let show = std::mem::take(&mut crate::studio::lock(&st.studio).show);
+    if !show.is_empty() {
+        job["show"] = json!(show);
+    }
     ok(job).into_response()
 }
 
@@ -1384,7 +1389,12 @@ async fn studio_ping(
     if !place.is_empty() {
         p.place = place;
     }
-    ok(json!({ "version": env!("CARGO_PKG_VERSION") })).into_response()
+    let mut pong = json!({ "version": env!("CARGO_PKG_VERSION") });
+    let show = std::mem::take(&mut p.show);
+    if !show.is_empty() {
+        pong["show"] = json!(show);
+    }
+    ok(pong).into_response()
 }
 
 async fn studio_unpair(State(st): State<AppState>, headers: axum::http::HeaderMap) -> Json<Value> {
@@ -1392,6 +1402,31 @@ async fn studio_unpair(State(st): State<AppState>, headers: axum::http::HeaderMa
         crate::studio::lock(&st.studio).revoke(&t);
     }
     ok(Value::Null)
+}
+
+#[derive(Deserialize)]
+struct ShowBody {
+    ids: Vec<String>,
+}
+
+async fn studio_show(State(st): State<AppState>, Json(body): Json<ShowBody>) -> Json<Value> {
+    let ids: Vec<String> = body
+        .ids
+        .iter()
+        .filter_map(|raw| raw.trim().parse::<i64>().ok().filter(|id| *id > 0))
+        .take(500)
+        .map(|id| id.to_string())
+        .collect();
+    if ids.is_empty() {
+        return fail("no asset ids to show");
+    }
+    let mut p = crate::studio::lock(&st.studio);
+    if !p.connected() {
+        return fail("Studio isn't paired, connect the plugin first");
+    }
+    let live = p.last_seen.is_some_and(|t| t.elapsed() < std::time::Duration::from_secs(15));
+    p.show = ids;
+    ok(json!({ "live": live }))
 }
 
 async fn migrate_job(State(st): State<AppState>) -> Json<Value> {
@@ -1492,6 +1527,7 @@ async fn migrate_start(State(st): State<AppState>, Json(body): Json<MigrateStart
         j.note.clear();
         j.run_id += 1;
         j.mode = if body.mode == "map" { "map".into() } else { "swap".into() };
+        j.target = body.to.clone();
         todo
     };
     let total = todo.len();

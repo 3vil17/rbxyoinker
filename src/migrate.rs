@@ -43,6 +43,7 @@ pub struct Job {
     pub cancel: bool,
     pub run_id: u64,
     pub mode: String,
+    pub target: String,
     pub note: String,
     pub scout: String,
     pub checking: bool,
