@@ -725,6 +725,29 @@ impl Roblox {
         Ok(bytes.to_vec())
     }
 
+    pub async fn fetch_format(&self, cookie: &str, id: i64, format: &str) -> Option<Vec<u8>> {
+        let body = json!([{ "requestId": "0", "assetId": id, "assetFormat": format }]);
+        let resp = self
+            .http
+            .post("https://assetdelivery.roblox.com/v2/assets/batch")
+            .roblox_cookie(cookie)
+            .header("Roblox-Browser-Asset-Request", "false")
+            .json(&body)
+            .send()
+            .await
+            .ok()?;
+        if !resp.status().is_success() {
+            return None;
+        }
+        let v: Value = resp.json().await.ok()?;
+        let location = v.get(0)?.get("locations")?.get(0)?.get("location")?.as_str()?.to_string();
+        let file = self.http.get(&location).send().await.ok()?;
+        if !file.status().is_success() {
+            return None;
+        }
+        Some(file.bytes().await.ok()?.to_vec())
+    }
+
     pub async fn batch_reachable(&self, cookie: &str, ids: &[i64], place_id: Option<i64>) -> Result<Vec<i64>> {
         let body: Vec<Value> = ids
             .iter()
