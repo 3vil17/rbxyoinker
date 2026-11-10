@@ -106,6 +106,7 @@ struct AppState {
     migrate: crate::migrate::Shared,
     studio: crate::studio::Shared,
     required: Arc<Mutex<Option<String>>>,
+    key: Arc<String>,
 }
 
 #[derive(Default)]
@@ -172,6 +173,7 @@ pub async fn run(updated: bool) -> std::io::Result<()> {
         migrate: Arc::default(),
         studio: crate::studio::load(),
         required: Arc::new(Mutex::new(saved_requirement())),
+        key: Arc::new(new_key()),
     };
     state.pool.reload(&state.rb).await;
     refresh_plugin();
@@ -244,6 +246,7 @@ pub async fn run(updated: bool) -> std::io::Result<()> {
         .route("/api/reveal", post(reveal))
         .route("/api/pick-folder", post(pick_folder))
         .layer(axum::middleware::from_fn_with_state(state.clone(), update_gate))
+        .layer(axum::middleware::from_fn_with_state(state.clone(), key_check))
         .layer(axum::middleware::from_fn(same_site_only))
         .with_state(state.clone());
     tokio::spawn(quit_when_tab_closed(state));
@@ -268,14 +271,14 @@ pub async fn run(updated: bool) -> std::io::Result<()> {
 
 const PAGE_POLICY: &str = "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; img-src 'self' data: https://*.rbxcdn.com https://raw.githubusercontent.com; media-src 'self'; connect-src 'self'; object-src 'none'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'";
 
-async fn index() -> impl IntoResponse {
+async fn index(State(st): State<AppState>) -> impl IntoResponse {
     (
         [
             (header::CONTENT_SECURITY_POLICY, PAGE_POLICY),
             (header::X_CONTENT_TYPE_OPTIONS, "nosniff"),
             (header::REFERRER_POLICY, "no-referrer"),
         ],
-        Html(include_str!("web/index.html")),
+        Html(include_str!("web/index.html").replace("__YOINKER_KEY__", &st.key)),
     )
 }
 
@@ -676,6 +679,43 @@ fn is_important(notes: &str) -> bool {
 
 fn clean_notes(notes: &str) -> String {
     notes.replace("<!-- important -->", "").replace("[important]", "").replace("[Important]", "").trim().to_string()
+}
+
+const KEY_OPEN: &[&str] = &[
+    "/api/quit/check",
+    "/api/studio/pair",
+    "/api/studio/submit",
+    "/api/studio/job",
+    "/api/studio/scan",
+    "/api/studio/ping",
+    "/api/studio/unpair",
+];
+
+fn new_key() -> String {
+    let mut buf = [0u8; 24];
+    if getrandom::getrandom(&mut buf).is_err() {
+        let seed = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).map_or(0, |d| d.as_nanos());
+        buf[..16].copy_from_slice(&(seed ^ (std::process::id() as u128) << 64).to_le_bytes());
+    }
+    buf.iter().map(|b| format!("{b:02x}")).collect()
+}
+
+fn same_key(given: &str, key: &str) -> bool {
+    given.len() == key.len() && given.bytes().zip(key.bytes()).fold(0u8, |acc, (a, b)| acc | (a ^ b)) == 0
+}
+
+async fn key_check(State(st): State<AppState>, req: axum::extract::Request, next: axum::middleware::Next) -> axum::response::Response {
+    let path = req.uri().path();
+    if !path.starts_with("/api/") || KEY_OPEN.contains(&path) {
+        return next.run(req).await;
+    }
+    let header = req.headers().get("x-yoinker-key").and_then(|v| v.to_str().ok());
+    let query = req.uri().query().and_then(|q| q.split('&').find_map(|p| p.strip_prefix("key=")));
+    if header.or(query).is_some_and(|k| same_key(k, &st.key)) {
+        return next.run(req).await;
+    }
+    let body = json!({ "ok": false, "bad_key": true, "error": "this page is out of date, reload it" });
+    (axum::http::StatusCode::UNAUTHORIZED, Json(body)).into_response()
 }
 
 const UPDATE_GATE_OPEN: &[&str] = &[
@@ -1778,8 +1818,8 @@ mod tests {
         let _ = std::fs::remove_dir_all(&dir);
     }
 
-    fn gate_app(required: Option<&str>) -> Router {
-        let state = AppState {
+    fn test_state(required: Option<&str>) -> AppState {
+        AppState {
             rb: Roblox::new(),
             pool: Pool::default(),
             bulk: Arc::default(),
@@ -1789,7 +1829,12 @@ mod tests {
             migrate: Arc::default(),
             studio: Arc::default(),
             required: Arc::new(Mutex::new(required.map(String::from))),
-        };
+            key: Arc::new("k".repeat(48)),
+        }
+    }
+
+    fn gate_app(required: Option<&str>) -> Router {
+        let state = test_state(required);
         let open = || async { "open" };
         Router::new()
             .route("/", get(open))
@@ -1818,5 +1863,46 @@ mod tests {
     #[tokio::test]
     async fn no_pending_update_lets_work_through() {
         assert_eq!(status(gate_app(None), "POST", "/api/download").await, 200);
+    }
+
+    fn key_app() -> Router {
+        let state = test_state(None);
+        let open = || async { "open" };
+        Router::new()
+            .route("/", get(open))
+            .route("/api/download", post(open))
+            .route("/api/studio/submit", post(open))
+            .layer(axum::middleware::from_fn_with_state(state.clone(), key_check))
+            .with_state(state)
+    }
+
+    async fn status_with(app: Router, method: &str, path: &str, key: Option<&str>) -> u16 {
+        use tower::ServiceExt;
+        let mut b = axum::http::Request::builder().method(method).uri(path);
+        if let Some(k) = key {
+            b = b.header("x-yoinker-key", k);
+        }
+        app.oneshot(b.body(axum::body::Body::empty()).unwrap()).await.unwrap().status().as_u16()
+    }
+
+    #[tokio::test]
+    async fn api_needs_the_page_key() {
+        let good = "k".repeat(48);
+        let bad = "j".repeat(48);
+        assert_eq!(status_with(key_app(), "POST", "/api/download", None).await, 401);
+        assert_eq!(status_with(key_app(), "POST", "/api/download", Some(&bad)).await, 401);
+        assert_eq!(status_with(key_app(), "POST", "/api/download", Some("short")).await, 401);
+        assert_eq!(status_with(key_app(), "POST", "/api/download", Some(&good)).await, 200);
+        let with_query = format!("/api/download?id=1&key={good}");
+        assert_eq!(status_with(key_app(), "POST", &with_query, None).await, 200);
+        assert_eq!(status_with(key_app(), "POST", "/api/studio/submit", None).await, 200);
+        assert_eq!(status_with(key_app(), "GET", "/", None).await, 200);
+    }
+
+    #[test]
+    fn keys_are_random_and_long() {
+        let (a, b) = (new_key(), new_key());
+        assert_eq!(a.len(), 48);
+        assert_ne!(a, b);
     }
 }
