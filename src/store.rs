@@ -77,6 +77,8 @@ pub struct Settings {
     #[serde(default = "yes")]
     pub mesh_obj: bool,
     #[serde(default)]
+    pub mesh_glb: bool,
+    #[serde(default)]
     pub accepted_terms: bool,
     #[serde(default)]
     pub seen_version: String,
@@ -156,6 +158,7 @@ impl Default for Settings {
             save_dir: default_save_dir().to_string_lossy().to_string(),
             sort_by_type: false,
             mesh_obj: true,
+            mesh_glb: false,
             accepted_terms: false,
             seen_version: String::new(),
             name_template: default_template(),
