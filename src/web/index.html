@@ -250,6 +250,12 @@
   .hist-name span { color: rgb(102, 102, 102); font-weight: 400; }
   .hist-sub { color: rgb(136, 136, 136); font-size: 0.72rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .empty { color: rgb(102, 102, 102); text-align: center; padding: 18px 0; font-size: 0.82rem; }
+  .cv-drop { appearance: none; width: 100%; display: flex; flex-direction: column; align-items: center; gap: 4px; padding: 26px 16px; cursor: pointer;
+    font-family: var(--font-sans); color: rgb(136, 136, 136); background: rgba(255,255,255,0.02); border: 1px dashed rgba(255,255,255,0.14); border-radius: 8px; transition: border-color 0.15s, background 0.15s; }
+  .cv-drop:hover, .cv-drop.drop { border-color: rgba(59,234,87,0.6); background: rgba(59,234,87,0.04); }
+  .cv-drop b { font-size: 0.86rem; font-weight: 500; color: rgb(224,224,224); }
+  .cv-drop span { font-size: 0.72rem; }
+  .cv-drop .cv-ic svg { width: 22px; height: 22px; stroke: rgb(170,170,170); fill: none; stroke-width: 1.6; margin-bottom: 4px; }
 
   .spinner { display: inline-block; width: 12px; height: 12px; border: 2px solid rgba(255,255,255,0.25);
     border-top-color: var(--green); border-radius: 50%; animation: spin 0.7s linear infinite; }
@@ -493,6 +499,7 @@
         <button data-tab="download" class="active" data-i="download">Download</button>
         <button data-tab="bulk" data-i="layers">Bulk</button>
         <button data-tab="migrate" data-i="move">Migrate</button>
+        <button data-tab="convert" data-i="box">Convert</button>
         <div class="nav-gap"></div>
         <button data-tab="accounts" data-i="users">Accounts</button>
         <button data-tab="history" data-i="history">History</button>
@@ -759,6 +766,22 @@
         </div>
       </section>
 
+      <section id="tab-convert" class="tab" style="display:none">
+        <div class="card" id="cv-card">
+          <button class="cv-drop" id="cv-drop" type="button">
+            <span class="cv-ic" data-i="box"></span>
+            <b>Drop .mesh files here</b>
+            <span>or click to pick them. Every version works, 1.00 to 7.00.</span>
+          </button>
+          <input type="file" id="cv-file" accept=".mesh" multiple hidden />
+          <div class="opt" style="margin-top:12px">
+            <div class="opt-t"><b>Save as</b><span>Files go to the Converted folder in your download folder. .glb keeps bones and skin weights.</span></div>
+            <div class="seg" id="cv-format"><button data-f="obj">.obj</button><button data-f="glb">.glb</button><button data-f="both" class="on">Both</button></div>
+          </div>
+          <div id="cv-list" style="margin-top:6px"></div>
+        </div>
+      </section>
+
       <section id="tab-history" class="tab" style="display:none">
         <div class="card">
           <div class="field-row">
@@ -995,6 +1018,7 @@ const TAB_INFO = {
   download: ["Download", "Paste an id or link and save the file."],
   bulk: ["Bulk", "Up to 1000 ids at once, or everything in a place file."],
   migrate: ["Migrate", "Move a place's assets to your account or a group."],
+  convert: ["Convert", "Turn .mesh files into .obj or .glb, right on this PC."],
   accounts: ["Accounts", "Who's signed in and how busy they are."],
   history: ["History", "Your last 200 downloads."],
   settings: ["Settings", "Cookies, folders and file names."],
@@ -1092,6 +1116,7 @@ document.addEventListener("click", (e) => {
 });
 // Lucide icons (ISC license), inlined
 const ICONS = {
+  box: '<path d="M21 8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16Z"/><path d="m3.3 7 8.7 5 8.7-5"/><path d="M12 22V12"/>',
   download: '<path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" x2="12" y1="15" y2="3"/>',
   code: '<polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/>',
   layers: '<path d="m12.83 2.18a2 2 0 0 0-1.66 0L2.6 6.08a1 1 0 0 0 0 1.83l8.58 3.91a2 2 0 0 0 1.66 0l8.58-3.9a1 1 0 0 0 0-1.83Z"/><path d="m22 17.65-9.17 4.16a2 2 0 0 1-1.66 0L2 17.65"/><path d="m22 12.65-9.17 4.16a2 2 0 0 1-1.66 0L2 12.65"/>',
@@ -1183,7 +1208,7 @@ document.querySelectorAll("nav button").forEach((b) => {
     b.classList.add("active");
     const tab = b.dataset.tab;
     store("tab", tab);
-    ["download", "bulk", "migrate", "accounts", "settings", "history"].forEach((t) => { $("#tab-" + t).style.display = t === tab ? "flex" : "none"; });
+    ["download", "bulk", "migrate", "convert", "accounts", "settings", "history"].forEach((t) => { $("#tab-" + t).style.display = t === tab ? "flex" : "none"; });
     showTab(tab); checkHealth();
     clearInterval(accTimer); clearInterval(mgTimer);
     if (tab === "migrate") { loadTargets(); loadPluginState(); loadScanPick(); pollMigrate(); mgTimer = setInterval(pollMigrate, 1500); }
@@ -2188,6 +2213,42 @@ $("#quit-link").onclick = async (e) => {
   showOffline("rbxyoinker is closed", "You can close this tab.");
 };
 $("#terms-ok").onclick = async () => { await post("/api/accept", {}); post("/api/changelog/seen", {}); $("#terms").style.display = "none"; };
+let cvFormat = store("cvformat") || "both";
+setSeg($("#cv-format"), "f", cvFormat);
+document.querySelectorAll("#cv-format button").forEach((b) => {
+  b.onclick = () => { cvFormat = b.dataset.f; store("cvformat", cvFormat); setSeg($("#cv-format"), "f", cvFormat); };
+});
+function cvRow(name, html) {
+  const el = document.createElement("div"); el.className = "hist-item";
+  el.innerHTML = '<div class="hist-main"><div class="hist-name">' + esc(name) + '</div><div class="hist-sub">' + html + "</div></div>";
+  $("#cv-list").prepend(el); return el;
+}
+async function convertFiles(files) {
+  for (const f of files) {
+    const row = cvRow(f.name, '<span class="spinner"></span> converting');
+    let res = null;
+    try {
+      const r = await fetch("/api/convert/mesh?format=" + cvFormat + "&name=" + encodeURIComponent(f.name), { method: "POST", body: f, headers: { "x-yoinker-key": KEY } });
+      res = await r.json();
+    } catch (e) { res = { ok: false, error: "the app didn't answer" }; }
+    if (!res.ok) { row.querySelector(".hist-sub").innerHTML = '<span style="color:rgb(208,96,112)">' + esc(res.error) + "</span>"; continue; }
+    const d = res.data;
+    const bits = ["v" + d.version, d.vertices + " vertices", d.faces + " faces"];
+    if (d.bones) bits.push(d.bones + " bones");
+    if (d.lods > 1) bits.push(d.lods + " LODs");
+    if (d.colors) bits.push("vertex colors");
+    if (d.facs) bits.push("FACS");
+    row.querySelector(".hist-sub").textContent = bits.join(" · ");
+    const btn = document.createElement("button"); btn.className = "btn"; btn.textContent = "Show";
+    btn.onclick = () => post("/api/reveal", { path: d.files[d.files.length - 1] });
+    row.append(btn);
+  }
+}
+$("#cv-drop").onclick = () => $("#cv-file").click();
+$("#cv-file").onchange = (e) => { convertFiles([...e.target.files]); e.target.value = ""; };
+["dragenter", "dragover"].forEach((ev) => $("#cv-card").addEventListener(ev, (e) => { e.preventDefault(); $("#cv-drop").classList.add("drop"); }));
+["dragleave", "drop"].forEach((ev) => $("#cv-card").addEventListener(ev, (e) => { e.preventDefault(); if (ev === "drop" || !$("#cv-card").contains(e.relatedTarget)) $("#cv-drop").classList.remove("drop"); }));
+$("#cv-card").addEventListener("drop", (e) => { const fs = [...e.dataTransfer.files]; if (fs.length) convertFiles(fs); });
 const lastTab = store("tab");
 if (lastTab && lastTab !== "download") { const b = document.querySelector('nav button[data-tab="' + lastTab + '"]'); if (b) b.click(); }
 </script>

@@ -232,6 +232,7 @@ pub async fn run(updated: bool) -> std::io::Result<()> {
         .route("/api/thumbs", post(thumbs))
         .route("/api/bulk/zip", post(bulk_zip))
         .route("/api/scan-file", post(scan_file).layer(DefaultBodyLimit::max(512 * 1024 * 1024)))
+        .route("/api/convert/mesh", post(convert_mesh).layer(DefaultBodyLimit::max(256 * 1024 * 1024)))
         .route("/api/update", get(update_check))
         .route("/api/accept", post(accept_terms))
         .route("/api/quit", post(quit_app))
@@ -955,6 +956,68 @@ async fn install_update(State(st): State<AppState>) -> Json<Value> {
         std::process::exit(0);
     });
     ok(json!({ "version": latest.tag }))
+}
+
+#[derive(Deserialize)]
+struct ConvertQ {
+    name: Option<String>,
+    format: Option<String>,
+}
+
+async fn convert_mesh(Query(q): Query<ConvertQ>, body: Bytes) -> Json<Value> {
+    let mesh = match rbxmesh::read(&body) {
+        Ok(m) => m,
+        Err(rbxmesh::Error::NotAMesh) => return fail("that isn't a Roblox mesh file"),
+        Err(e) => return fail(e.to_string()),
+    };
+    let format = q.format.as_deref().unwrap_or("both");
+    let (want_obj, want_glb) = match format {
+        "obj" => (true, false),
+        "glb" => (false, true),
+        _ => (true, true),
+    };
+    let raw = q.name.as_deref().unwrap_or("mesh");
+    let stem = crate::download::sanitize(raw.strip_suffix(".mesh").unwrap_or(raw));
+    let dir = std::path::PathBuf::from(store::load_settings().save_dir).join("Converted");
+    if let Err(e) = std::fs::create_dir_all(&dir) {
+        return fail(format!("can't create {}: {e}", dir.display()));
+    }
+    let mut files = Vec::new();
+    if want_obj {
+        match rbxmesh::to_obj(&mesh, 0) {
+            Ok(text) => {
+                let path = dir.join(format!("{stem}.obj"));
+                if let Err(e) = std::fs::write(&path, text) {
+                    return fail(format!("can't write {}: {e}", path.display()));
+                }
+                files.push(path.to_string_lossy().to_string());
+            }
+            Err(e) => return fail(e.to_string()),
+        }
+    }
+    if want_glb {
+        match rbxmesh::to_glb(&mesh, 0) {
+            Ok(bytes) => {
+                let path = dir.join(format!("{stem}.glb"));
+                if let Err(e) = std::fs::write(&path, bytes) {
+                    return fail(format!("can't write {}: {e}", path.display()));
+                }
+                files.push(path.to_string_lossy().to_string());
+            }
+            Err(e) => return fail(e.to_string()),
+        }
+    }
+    ok(json!({
+        "name": stem,
+        "version": mesh.version,
+        "vertices": mesh.vertices.len(),
+        "faces": mesh.lod_faces(0).map_or(0, |f| f.len()),
+        "lods": mesh.lod_count(),
+        "bones": mesh.bones.len(),
+        "colors": mesh.has_colors(),
+        "facs": mesh.facs.is_some(),
+        "files": files,
+    }))
 }
 
 async fn scan_file(body: Bytes) -> Json<Value> {
