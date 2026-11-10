@@ -104,6 +104,8 @@ pub struct Settings {
     pub migrate_stop_after: u32,
     #[serde(default = "yes")]
     pub skip_defaults: bool,
+    #[serde(default)]
+    pub required_version: String,
 }
 
 pub const DEFAULT_TEMPLATE: &str = "{name}_{id}";
@@ -170,6 +172,7 @@ impl Default for Settings {
             migrate_keep: false,
             migrate_stop_after: 0,
             skip_defaults: true,
+            required_version: String::new(),
         }
     }
 }

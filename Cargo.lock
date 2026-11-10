@@ -1310,6 +1310,7 @@ dependencies = [
  "serde_json",
  "thiserror",
  "tokio",
+ "tower",
  "windows-sys 0.61.2",
  "winresource",
  "zip",
