@@ -123,6 +123,8 @@ struct Bulk {
     place: Option<i64>,
     scout: String,
     items: Vec<BulkItem>,
+    started: Option<std::time::Instant>,
+    base: usize,
 }
 
 #[derive(Serialize, Clone, Default)]
@@ -213,6 +215,7 @@ pub async fn run(updated: bool) -> std::io::Result<()> {
         .route("/api/cookies/remove-dead", post(cookies_remove_dead))
         .route("/api/bulk", post(bulk_start))
         .route("/api/bulk/status", get(bulk_status))
+        .route("/api/jobs", get(jobs))
         .route("/api/bulk/cancel", post(bulk_cancel))
         .route("/api/bulk/preview", post(bulk_preview))
         .route("/api/bulk/clear", post(bulk_clear))
@@ -230,6 +233,11 @@ pub async fn run(updated: bool) -> std::io::Result<()> {
         .route("/api/studio/scan", get(studio_scan))
         .route("/api/studio/ping", post(studio_ping))
         .route("/api/studio/unpair", post(studio_unpair))
+        .route("/api/studio/show", post(studio_show))
+        .route("/api/studio/insert", post(studio_insert))
+        .route("/api/studio/file", get(studio_file))
+        .route("/api/studio/bulk", post(studio_bulk))
+        .route("/api/studio/inbox", get(studio_inbox))
         .route("/api/migrate/job", get(migrate_job))
         .route("/api/migrate/targets", get(migrate_targets))
         .route("/api/migrate/account-check", get(migrate_account_check))
@@ -420,6 +428,7 @@ async fn download_asset(State(st): State<AppState>, Json(body): Json<DownloadBod
             "method": info.method,
             "place_id": info.place_id,
             "account": info.account,
+            "insertable": insertable(&info.path).is_some(),
             "path": info.path,
         })),
         Err(e) => fail(e.to_string()),
@@ -702,6 +711,8 @@ const KEY_OPEN: &[&str] = &[
     "/api/studio/scan",
     "/api/studio/ping",
     "/api/studio/unpair",
+    "/api/studio/file",
+    "/api/studio/bulk",
 ];
 
 fn new_key() -> String {
@@ -747,6 +758,7 @@ const UPDATE_GATE_OPEN: &[&str] = &[
     "/api/migrate/job",
     "/api/migrate/cancel",
     "/api/studio/job",
+    "/api/jobs",
 ];
 
 fn saved_requirement() -> Option<String> {
@@ -1073,6 +1085,8 @@ async fn bulk_start(State(st): State<AppState>, Json(body): Json<BulkBody>) -> J
             place: parse_place(body.place.as_deref()),
             scout: String::new(),
             items: ids.iter().map(|&id| BulkItem { id, state: "queued", ..Default::default() }).collect(),
+            started: Some(std::time::Instant::now()),
+            base: 0,
         };
     }
     let total = ids.len();
@@ -1107,6 +1121,8 @@ async fn bulk_retry(State(st): State<AppState>, Json(body): Json<RetryBody>) -> 
         if !todo.is_empty() {
             b.running = true;
             b.cancel = false;
+            b.started = Some(std::time::Instant::now());
+            b.base = b.items.iter().filter(|it| bulk_done(it.state)).count();
         }
         todo
     };
@@ -1362,6 +1378,15 @@ async fn studio_job(State(st): State<AppState>, headers: axum::http::HeaderMap) 
     }
     let mut job = json!(*crate::migrate::lock(&st.migrate));
     job["version"] = json!(env!("CARGO_PKG_VERSION"));
+    let mut p = crate::studio::lock(&st.studio);
+    let show = std::mem::take(&mut p.show);
+    if !show.is_empty() {
+        job["show"] = json!(show);
+    }
+    let inserts = std::mem::take(&mut p.inserts);
+    if !inserts.is_empty() {
+        job["insert"] = json!(inserts.iter().map(|(n, name)| json!({ "n": n, "name": name })).collect::<Vec<_>>());
+    }
     ok(job).into_response()
 }
 
@@ -1384,7 +1409,16 @@ async fn studio_ping(
     if !place.is_empty() {
         p.place = place;
     }
-    ok(json!({ "version": env!("CARGO_PKG_VERSION") })).into_response()
+    let mut pong = json!({ "version": env!("CARGO_PKG_VERSION") });
+    let show = std::mem::take(&mut p.show);
+    if !show.is_empty() {
+        pong["show"] = json!(show);
+    }
+    let inserts = std::mem::take(&mut p.inserts);
+    if !inserts.is_empty() {
+        pong["insert"] = json!(inserts.iter().map(|(n, name)| json!({ "n": n, "name": name })).collect::<Vec<_>>());
+    }
+    ok(pong).into_response()
 }
 
 async fn studio_unpair(State(st): State<AppState>, headers: axum::http::HeaderMap) -> Json<Value> {
@@ -1392,6 +1426,125 @@ async fn studio_unpair(State(st): State<AppState>, headers: axum::http::HeaderMa
         crate::studio::lock(&st.studio).revoke(&t);
     }
     ok(Value::Null)
+}
+
+#[derive(Deserialize)]
+struct ShowBody {
+    ids: Vec<String>,
+}
+
+async fn studio_show(State(st): State<AppState>, Json(body): Json<ShowBody>) -> Json<Value> {
+    let ids: Vec<String> = body
+        .ids
+        .iter()
+        .filter_map(|raw| raw.trim().parse::<i64>().ok().filter(|id| *id > 0))
+        .take(500)
+        .map(|id| id.to_string())
+        .collect();
+    if ids.is_empty() {
+        return fail("no asset ids to show");
+    }
+    let mut p = crate::studio::lock(&st.studio);
+    if !p.connected() {
+        return fail("Studio isn't paired, connect the plugin first");
+    }
+    let live = p.last_seen.is_some_and(|t| t.elapsed() < std::time::Duration::from_secs(15));
+    p.show = ids;
+    ok(json!({ "live": live }))
+}
+
+fn insertable(path: &str) -> Option<std::path::PathBuf> {
+    let p = std::path::Path::new(path.trim());
+    let ext = p.extension().and_then(|e| e.to_str()).unwrap_or("").to_ascii_lowercase();
+    if (ext == "rbxm" || ext == "rbxmx") && p.is_file() {
+        return Some(p.to_path_buf());
+    }
+    let stem = p.file_stem()?.to_str()?;
+    let animated = p.with_file_name(format!("{stem}_Animated.rbxm"));
+    animated.is_file().then_some(animated)
+}
+
+#[derive(Deserialize)]
+struct InsertBody {
+    path: String,
+}
+
+async fn studio_insert(State(st): State<AppState>, Json(body): Json<InsertBody>) -> Json<Value> {
+    let Some(file) = insertable(&body.path) else {
+        return fail("only models (.rbxm or .rbxmx) can go into Studio");
+    };
+    let mut p = crate::studio::lock(&st.studio);
+    if !p.connected() {
+        return fail("Studio isn't paired, connect the plugin first");
+    }
+    let live = p.last_seen.is_some_and(|t| t.elapsed() < std::time::Duration::from_secs(15));
+    p.next_file += 1;
+    let n = p.next_file;
+    let name = file.file_stem().and_then(|s| s.to_str()).unwrap_or("model").to_string();
+    p.files.push((n, file));
+    if p.files.len() > 20 {
+        p.files.remove(0);
+    }
+    p.inserts.push((n, name));
+    ok(json!({ "live": live }))
+}
+
+#[derive(Deserialize)]
+struct FileQ {
+    n: u64,
+}
+
+async fn studio_file(
+    State(st): State<AppState>,
+    headers: axum::http::HeaderMap,
+    Query(q): Query<FileQ>,
+) -> axum::response::Response {
+    let file = {
+        let mut p = crate::studio::lock(&st.studio);
+        if !p.check(studio_token(&headers).as_deref()) {
+            return unpaired();
+        }
+        p.files.iter().find(|(n, _)| *n == q.n).map(|(_, f)| f.clone())
+    };
+    let Some(file) = file else {
+        return (axum::http::StatusCode::NOT_FOUND, "gone").into_response();
+    };
+    match std::fs::read(&file) {
+        Ok(bytes) => ([(axum::http::header::CONTENT_TYPE, "application/octet-stream")], bytes).into_response(),
+        Err(_) => (axum::http::StatusCode::NOT_FOUND, "gone").into_response(),
+    }
+}
+
+#[derive(Deserialize)]
+struct StudioBulk {
+    ids: Vec<String>,
+}
+
+async fn studio_bulk(
+    State(st): State<AppState>,
+    headers: axum::http::HeaderMap,
+    Json(body): Json<StudioBulk>,
+) -> axum::response::Response {
+    let mut p = crate::studio::lock(&st.studio);
+    if !p.check(studio_token(&headers).as_deref()) {
+        return unpaired();
+    }
+    let mut ids: Vec<String> = Vec::new();
+    for raw in &body.ids {
+        if let Some(id) = raw.trim().parse::<i64>().ok().filter(|id| *id > 0).map(|id| id.to_string()) {
+            if !ids.contains(&id) {
+                ids.push(id);
+            }
+        }
+    }
+    let count = ids.len();
+    p.bulk = ids;
+    ok(json!({ "count": count, "version": env!("CARGO_PKG_VERSION") })).into_response()
+}
+
+async fn studio_inbox(State(st): State<AppState>) -> Json<Value> {
+    let bulk = std::mem::take(&mut crate::studio::lock(&st.studio).bulk);
+    ok(json!({ "bulk": bulk }))
 }
 
 async fn migrate_job(State(st): State<AppState>) -> Json<Value> {
@@ -1492,6 +1645,8 @@ async fn migrate_start(State(st): State<AppState>, Json(body): Json<MigrateStart
         j.note.clear();
         j.run_id += 1;
         j.mode = if body.mode == "map" { "map".into() } else { "swap".into() };
+        j.started = Some(std::time::Instant::now());
+        j.target = body.to.clone();
         todo
     };
     let total = todo.len();
@@ -1536,6 +1691,7 @@ async fn migrate_check(State(st): State<AppState>, Json(body): Json<MigrateCheck
         j.running = true;
         j.checking = true;
         j.cancel = false;
+        j.started = Some(std::time::Instant::now());
         j.note.clear();
         todo
     };
@@ -1654,6 +1810,54 @@ async fn run_bulk(st: AppState, todo: Vec<usize>, workers: usize) {
         let _ = h.await;
     }
     st.bulk.lock().unwrap_or_else(|e| e.into_inner()).running = false;
+}
+
+fn bulk_done(state: &str) -> bool {
+    matches!(state, "ok" | "error" | "have" | "skipped")
+}
+
+fn eta(started: Option<std::time::Instant>, base: usize, done: usize, total: usize) -> Option<u64> {
+    let elapsed = started?.elapsed().as_secs_f64();
+    let moved = done.saturating_sub(base);
+    if moved < 2 || elapsed < 3.0 || done >= total {
+        return None;
+    }
+    Some((elapsed / moved as f64 * (total - done) as f64).ceil() as u64)
+}
+
+async fn jobs(State(st): State<AppState>) -> Json<Value> {
+    let bulk = {
+        let b = st.bulk.lock().unwrap_or_else(|e| e.into_inner());
+        b.running.then(|| {
+            let total = b.items.len();
+            let done = b.items.iter().filter(|it| bulk_done(it.state)).count();
+            let failed = b.items.iter().filter(|it| it.state == "error").count();
+            json!({ "total": total, "done": done, "failed": failed, "eta": eta(b.started, b.base, done, total) })
+        })
+    };
+    let migrate = {
+        let j = crate::migrate::lock(&st.migrate);
+        j.running.then(|| {
+            let (total, done, failed) = if j.checking {
+                let asked: Vec<&str> = j.items.iter().map(|it| it.reach.as_str()).filter(|r| !r.is_empty()).collect();
+                let done = asked.iter().filter(|r| !matches!(**r, "queued" | "checking")).count();
+                (asked.len(), done, asked.iter().filter(|r| **r == "no").count())
+            } else {
+                let moving: Vec<&str> = j.items.iter().map(|it| it.state.as_str()).filter(|s| *s != "found").collect();
+                let failed = moving.iter().filter(|s| **s == "error").count();
+                (moving.len(), moving.iter().filter(|s| **s == "ok").count() + failed, failed)
+            };
+            json!({
+                "checking": j.checking,
+                "place": j.place,
+                "total": total,
+                "done": done,
+                "failed": failed,
+                "eta": eta(j.started, 0, done, total),
+            })
+        })
+    };
+    ok(json!({ "bulk": bulk, "migrate": migrate }))
 }
 
 async fn bulk_status(State(st): State<AppState>) -> Json<Value> {
@@ -1888,6 +2092,33 @@ async fn reveal(Json(body): Json<RevealBody>) -> Json<Value> {
 mod tests {
     use super::*;
     use std::io::Read;
+
+    #[test]
+    fn eta_needs_progress_and_counts_from_base() {
+        let ten_s_ago = std::time::Instant::now().checked_sub(std::time::Duration::from_secs(10));
+        assert_eq!(eta(None, 0, 5, 10), None);
+        assert_eq!(eta(ten_s_ago, 0, 1, 10), None);
+        assert_eq!(eta(ten_s_ago, 0, 10, 10), None);
+        assert!(matches!(eta(ten_s_ago, 0, 5, 10), Some(10 | 11)));
+        assert!(matches!(eta(ten_s_ago, 4, 6, 8), Some(10 | 11)));
+    }
+
+    #[test]
+    fn insertable_picks_models_and_animated_heads() {
+        let dir = std::env::temp_dir().join(format!("rbxyoinker-insert-{}", std::process::id()));
+        std::fs::create_dir_all(&dir).unwrap();
+        let model = dir.join("Chair.rbxm");
+        let head = dir.join("Head.obj");
+        let png = dir.join("Decal.png");
+        for f in [&model, &head, &png, &dir.join("Head_Animated.rbxm")] {
+            std::fs::write(f, b"x").unwrap();
+        }
+        assert_eq!(insertable(&model.to_string_lossy()), Some(model.clone()));
+        assert_eq!(insertable(&head.to_string_lossy()), Some(dir.join("Head_Animated.rbxm")));
+        assert_eq!(insertable(&png.to_string_lossy()), None);
+        assert_eq!(insertable(&dir.join("missing.rbxm").to_string_lossy()), None);
+        let _ = std::fs::remove_dir_all(&dir);
+    }
 
     #[test]
     fn zip_keeps_folders_and_contents() {

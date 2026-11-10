@@ -5,6 +5,8 @@ local ScriptEditorService = game:GetService("ScriptEditorService")
 local AssetService = game:GetService("AssetService")
 local RunService = game:GetService("RunService")
 local TweenService = game:GetService("TweenService")
+local Selection = game:GetService("Selection")
+local SerializationService = game:GetService("SerializationService")
 
 if not RunService:IsEdit() then
 	return
@@ -113,6 +115,8 @@ local appVersion = nil
 local busy = false
 local noteMessage = nil
 local noteKind = nil
+local scope = "place"
+local leftovers = {}
 
 local function tone(inst, map)
 	for prop, key in map do
@@ -441,18 +445,68 @@ scanHeading.Aside.Text = game.Name
 local scanHint = hintTemplate:Clone()
 scanHint.Text = "Sends this place's asset ids to the app. Pick where they go in the Migrate tab, the new ids get swapped in here when it's done."
 scanHint.Parent = scanCard
+local seg = Instance.new("Frame")
+seg.Size = UDim2.new(1, 0, 0, 30)
+seg.LayoutOrder = 3
+tone(seg, { BackgroundColor3 = "field" })
+seg.Parent = scanCard
+buttonCorner:Clone().Parent = seg
+hairline:Clone().Parent = seg
+local segPadding = Instance.new("UIPadding")
+segPadding.PaddingTop = UDim.new(0, 2)
+segPadding.PaddingBottom = UDim.new(0, 2)
+segPadding.PaddingLeft = UDim.new(0, 2)
+segPadding.PaddingRight = UDim.new(0, 2)
+segPadding.Parent = seg
+local segThumb = Instance.new("Frame")
+segThumb.Size = UDim2.fromScale(0.5, 1)
+segThumb.BorderSizePixel = 0
+tone(segThumb, { BackgroundColor3 = "main" })
+segThumb.Parent = seg
+local thumbCorner = Instance.new("UICorner")
+thumbCorner.CornerRadius = UDim.new(0, 4)
+thumbCorner.Parent = segThumb
+local segButtons = {}
+for index, option in { { "place", "Whole place" }, { "selection", "Selection" } } do
+	local choice = Instance.new("TextButton")
+	choice.BackgroundTransparency = 1
+	choice.AutoButtonColor = false
+	choice.Position = UDim2.fromScale((index - 1) * 0.5, 0)
+	choice.Size = UDim2.fromScale(0.5, 1)
+	choice.FontFace = medium
+	choice.Text = option[2]
+	choice.TextSize = 12
+	choice.TextTruncate = Enum.TextTruncate.AtEnd
+	choice.ZIndex = 2
+	tone(choice, { TextColor3 = "muted" })
+	choice.Parent = seg
+	segButtons[option[1]] = choice
+end
+local scopeHint = hintTemplate:Clone()
+scopeHint.TextSize = 12
+scopeHint.Text = "Select something in the Explorer to scan just that part."
+scopeHint.LayoutOrder = 4
+tone(scopeHint, { TextColor3 = "dim" })
+scopeHint.Parent = scanCard
 local scanButton = mainTemplate:Clone()
 setIcon(scanButton.Icon, icons.scan)
 scanButton.Label.Text = "Scan place"
-scanButton.LayoutOrder = 3
+scanButton.LayoutOrder = 5
 scanButton.Parent = scanCard
 local lastScan = hintTemplate:Clone()
 lastScan.TextSize = 12
 lastScan.Text = ""
 lastScan.Visible = false
-lastScan.LayoutOrder = 4
+lastScan.LayoutOrder = 7
 tone(lastScan, { TextColor3 = "dim" })
 lastScan.Parent = scanCard
+
+local bulkButton = buttonTemplate:Clone()
+setIcon(bulkButton.Icon, icons.move)
+bulkButton.Label.Text = "Download selection"
+bulkButton.LayoutOrder = 6
+bulkButton.Visible = false
+bulkButton.Parent = scanCard
 
 local progressCard = cardTemplate:Clone()
 progressCard.LayoutOrder = 4
@@ -531,6 +585,13 @@ applyButton.LayoutOrder = 4
 applyButton.Visible = false
 applyButton.Parent = progressCard
 
+local leftButton = buttonTemplate:Clone()
+setIcon(leftButton.Icon, icons.scan)
+leftButton.Label.Text = "Select leftovers"
+leftButton.LayoutOrder = 5
+leftButton.Visible = false
+leftButton.Parent = progressCard
+
 local note = Instance.new("Frame")
 note.Size = UDim2.fromScale(1, 0)
 note.AutomaticSize = Enum.AutomaticSize.Y
@@ -565,7 +626,7 @@ footer.LayoutOrder = 6
 tone(footer, { TextColor3 = "dim" })
 footer.Parent = root
 
-local hoverable = { connectButton, scanButton, applyButton, disconnectButton }
+local hoverable = { connectButton, scanButton, bulkButton, applyButton, leftButton, disconnectButton }
 for _, button in hoverable do
 	button.MouseEnter:Connect(function()
 		local base = button:GetAttribute("ToneBackgroundColor3")
@@ -727,6 +788,21 @@ local function setBusy(button, label)
 	end
 end
 
+local function showScope()
+	local has = #Selection:Get() > 0
+	if scope == "selection" and not has then
+		scope = "place"
+	end
+	TweenService:Create(segThumb, quick, { Position = UDim2.fromScale(scope == "place" and 0 or 0.5, 0) }):Play()
+	tone(segButtons.place, { TextColor3 = scope == "place" and "bright" or "muted" })
+	tone(segButtons.selection, { TextColor3 = scope == "selection" and "bright" or (has and "muted" or "placeholder") })
+	scopeHint.Visible = not has
+	bulkButton.Visible = has
+	if not spinners[scanButton] then
+		scanButton.Label.Text = scope == "place" and "Scan place" or "Scan selection"
+	end
+end
+
 local function showVersion()
 	if appVersion and pluginVersion ~= "dev" and appVersion ~= pluginVersion then
 		footer.Text = "Plugin v" .. pluginVersion .. " is out of date, update it in the app"
@@ -793,9 +869,9 @@ local function call(method, path, body, quiet)
 	return decoded.data
 end
 
-local function scan(config)
-	refs = {}
-	scriptRefs = {}
+local function scan(config, roots)
+	local foundRefs = {}
+	local foundScripts = {}
 	local ids = {}
 	local seen = {}
 	local inProps = {}
@@ -809,7 +885,18 @@ local function scan(config)
 		listed[name] = true
 	end
 	local everything = {}
-	for _, service in game:GetChildren() do
+	local services = game:GetChildren()
+	if roots then
+		services = {}
+		for _, chosen in roots do
+			table.insert(everything, chosen)
+			local ok, list = pcall(chosen.GetDescendants, chosen)
+			if ok then
+				table.move(list, 1, #list, #everything + 1, everything)
+			end
+		end
+	end
+	for _, service in services do
 		local include
 		if service.ClassName == "CoreGui" then
 			include = not config.skip_coregui
@@ -837,7 +924,7 @@ local function scan(config)
 				end)
 				local digits = ok and typeof(value) == "string" and string.match(value, "%d%d%d+")
 				if digits then
-					table.insert(refs, { instance = inst, prop = prop, id = digits })
+					table.insert(foundRefs, { instance = inst, prop = prop, id = digits })
 					inProps[digits] = true
 					if not seen[digits] then
 						seen[digits] = true
@@ -867,7 +954,7 @@ local function scan(config)
 					end
 				end
 				if found then
-					table.insert(scriptRefs, inst)
+					table.insert(foundScripts, inst)
 				end
 			end
 		end
@@ -878,7 +965,107 @@ local function scan(config)
 			table.insert(fromScripts, { id = digits, script = where.script, line = where.line })
 		end
 	end
-	return { ids = ids, fromScripts = fromScripts }
+	return { ids = ids, fromScripts = fromScripts, refs = foundRefs, scriptRefs = foundScripts }
+end
+
+local function usersOf(wanted)
+	local found = {}
+	local index = 0
+	for _, service in game:GetChildren() do
+		if service.ClassName ~= "CoreGui" then
+			local ok, list = pcall(service.GetDescendants, service)
+			for _, inst in ok and list or {} do
+				index += 1
+				if index % 4000 == 0 then
+					task.wait()
+				end
+				local props = watched[inst.ClassName]
+				if props then
+					for _, prop in props do
+						local read, value = pcall(function()
+							return inst[prop]
+						end)
+						local digits = read and typeof(value) == "string" and string.match(value, "%d%d%d+")
+						if digits and wanted[digits] then
+							table.insert(found, inst)
+							break
+						end
+					end
+				elseif inst:IsA("LuaSourceContainer") then
+					local read, source = pcall(function()
+						return inst.Source
+					end)
+					if read and typeof(source) == "string" then
+						for digits in string.gmatch(source, "%f[%w](%d+)%f[%W]") do
+							if wanted[digits] then
+								table.insert(found, inst)
+								break
+							end
+						end
+					end
+				end
+			end
+		end
+	end
+	return found
+end
+
+local function selectIds(ids, label)
+	local wanted = {}
+	for _, id in ids do
+		wanted[tostring(id)] = true
+	end
+	local found = usersOf(wanted)
+	Selection:Set(found)
+	if #found == 0 then
+		setStatus("Nothing in this place uses " .. label .. " anymore.")
+	else
+		setStatus("Selected " .. #found .. (#found == 1 and " instance" or " instances") .. " using " .. label .. ".", "ok")
+	end
+end
+
+local function insertModels(list)
+	local inserted = {}
+	local failed = 0
+	local camera = workspace.CurrentCamera
+	local spot = camera and (camera.CFrame * CFrame.new(0, 0, -20)).Position or Vector3.zero
+	local recording = ChangeHistoryService:TryBeginRecording("rbxyoinker insert")
+	for _, ticket in list do
+		local ok, res = pcall(HttpService.RequestAsync, HttpService, {
+			Url = serverUrl .. "/api/studio/file?n=" .. tostring(ticket.n),
+			Method = "GET",
+			Headers = { ["X-Yoinker-Token"] = token },
+		})
+		local items = nil
+		if ok and res.StatusCode == 200 then
+			local loaded, result = pcall(SerializationService.DeserializeInstancesAsync, SerializationService, buffer.fromstring(res.Body))
+			items = loaded and result or nil
+		end
+		if typeof(items) == "table" and #items > 0 then
+			for _, item in items do
+				item.Parent = workspace
+				if item:IsA("PVInstance") then
+					pcall(item.PivotTo, item, CFrame.new(spot))
+				end
+				table.insert(inserted, item)
+			end
+		else
+			failed += 1
+		end
+	end
+	if recording then
+		ChangeHistoryService:FinishRecording(recording, Enum.FinishRecordingOperation.Commit)
+	end
+	if #inserted > 0 then
+		Selection:Set(inserted)
+	end
+	if failed > 0 then
+		setStatus("Couldn't load " .. failed .. (failed == 1 and " model" or " models") .. " from rbxyoinker.", "err")
+	elseif #list == 1 then
+		setStatus("Inserted " .. tostring(list[1].name) .. ". Ctrl+Z undoes it.", "ok")
+	else
+		setStatus("Inserted " .. #list .. " models. Ctrl+Z undoes it.", "ok")
+	end
 end
 
 local function applySwaps()
@@ -958,6 +1145,18 @@ local function showJob(job)
 	TweenService:Create(tiles.done, smooth, { Value = done }):Play()
 	TweenService:Create(tiles.moved, smooth, { Value = moved }):Play()
 	TweenService:Create(tiles.failed, smooth, { Value = failed }):Play()
+	leftovers = {}
+	if not job.running and typeof(job.target) == "string" and job.target ~= "" then
+		for _, item in job.items do
+			if item.kind ~= "" and item.state ~= "ok" and item.owner ~= job.target then
+				table.insert(leftovers, tostring(item.id))
+			end
+		end
+	end
+	leftButton.Visible = #leftovers > 0
+	if not spinners[leftButton] then
+		leftButton.Label.Text = "Select " .. #leftovers .. (#leftovers == 1 and " leftover" or " leftovers")
+	end
 	progressHeading.Label.Text = job.running and "Moving" or "Progress"
 	progressHeading.Aside.Text = total > 0 and (done .. " of " .. total) or ""
 	if job.running then
@@ -1011,12 +1210,15 @@ local function scanAndSend()
 	setBusy(scanButton, "Scanning ...")
 	setStatus("")
 	local config = call("GET", "/api/studio/scan")
-	local found = config and scan(config) or { ids = {}, fromScripts = {} }
+	local found = config and scan(config, scope == "selection" and Selection:Get() or nil)
+		or { ids = {}, fromScripts = {}, refs = {}, scriptRefs = {} }
+	refs = found.refs
+	scriptRefs = found.scriptRefs
 	local ids = found.ids
 	local fromScripts = found.fromScripts
 	local sent = nil
 	if config and #ids == 0 then
-		setStatus("No asset ids found in the parts of the place you picked to scan.")
+		setStatus(scope == "selection" and "No asset ids found in the selection." or "No asset ids found in the parts of the place you picked to scan.")
 	elseif config then
 		sent = call("POST", "/api/studio/submit", { place = game.Name, place_id = game.PlaceId, ids = ids, from_scripts = fromScripts })
 	end
@@ -1038,6 +1240,50 @@ connectButton.MouseButton1Click:Connect(connect)
 scanButton.MouseButton1Click:Connect(scanAndSend)
 applyButton.MouseButton1Click:Connect(applySwaps)
 
+bulkButton.MouseButton1Click:Connect(function()
+	if busy or #Selection:Get() == 0 then
+		return
+	end
+	busy = true
+	setBusy(bulkButton, "Reading ...")
+	local config = call("GET", "/api/studio/scan")
+	local found = config and scan(config, Selection:Get())
+	local sent = nil
+	if found and #found.ids == 0 then
+		setStatus("No asset ids found in the selection.")
+	elseif found then
+		sent = call("POST", "/api/studio/bulk", { ids = found.ids })
+	end
+	setBusy(bulkButton, nil)
+	busy = false
+	if sent then
+		setStatus("Sent " .. sent.count .. " ids to rbxyoinker's Bulk tab.", "ok")
+	end
+end)
+
+leftButton.MouseButton1Click:Connect(function()
+	if busy or #leftovers == 0 then
+		return
+	end
+	busy = true
+	setBusy(leftButton, "Selecting ...")
+	selectIds(leftovers, #leftovers == 1 and "the old id" or (#leftovers .. " old ids"))
+	setBusy(leftButton, nil)
+	busy = false
+end)
+
+segButtons.place.MouseButton1Click:Connect(function()
+	scope = "place"
+	showScope()
+end)
+segButtons.selection.MouseButton1Click:Connect(function()
+	if #Selection:Get() > 0 then
+		scope = "selection"
+	end
+	showScope()
+end)
+Selection.SelectionChanged:Connect(showScope)
+
 codeBox.FocusLost:Connect(function(enterPressed)
 	if enterPressed then
 		connect()
@@ -1055,6 +1301,7 @@ toggle.Click:Connect(function()
 end)
 
 showView()
+showScope()
 if token == "" then
 	setStatus("The rbxyoinker app has to be running.")
 end
@@ -1066,10 +1313,22 @@ task.spawn(function()
 				local job = call("GET", "/api/studio/job", nil, true)
 				if job then
 					showJob(job)
+					if job.show then
+						selectIds(job.show, #job.show == 1 and ("#" .. job.show[1]) or (#job.show .. " ids"))
+					end
+					if job.insert then
+						insertModels(job.insert)
+					end
 				end
 				task.wait(2)
 			else
-				call("POST", "/api/studio/ping", { place = game.Name, place_id = game.PlaceId }, true)
+				local pong = call("POST", "/api/studio/ping", { place = game.Name, place_id = game.PlaceId }, true)
+				if pong and pong.show then
+					selectIds(pong.show, #pong.show == 1 and ("#" .. pong.show[1]) or (#pong.show .. " ids"))
+				end
+				if pong and pong.insert then
+					insertModels(pong.insert)
+				end
 				task.wait(5)
 			end
 		else

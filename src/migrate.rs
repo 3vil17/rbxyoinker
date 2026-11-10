@@ -43,6 +43,9 @@ pub struct Job {
     pub cancel: bool,
     pub run_id: u64,
     pub mode: String,
+    pub target: String,
+    #[serde(skip)]
+    pub started: Option<std::time::Instant>,
     pub note: String,
     pub scout: String,
     pub checking: bool,
