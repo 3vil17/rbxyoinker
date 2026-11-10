@@ -819,8 +819,12 @@
               <label class="sw"><input type="checkbox" id="sort-type" /><i></i></label>
             </div>
             <div class="opt">
-              <div class="opt-t"><b>Also save meshes as .obj</b><span>Opens in Blender.</span></div>
+              <div class="opt-t"><b>Also save meshes as .obj</b><span>Opens in Blender and most 3D apps. Geometry and vertex colors only.</span></div>
               <label class="sw"><input type="checkbox" id="mesh-obj" /><i></i></label>
+            </div>
+            <div class="opt">
+              <div class="opt-t"><b>Also save meshes as .glb</b><span>Keeps bones and skin weights, so layered clothing and bodies open rigged.</span></div>
+              <label class="sw"><input type="checkbox" id="mesh-glb" /><i></i></label>
             </div>
             <div class="opt">
               <div class="opt-t"><b>Save images as .png</b><span>Converts jpg and webp.</span></div>
@@ -1280,6 +1284,7 @@ async function loadSettings() {
   $("#save-dir").value = res.data.save_dir;
   $("#sort-type").checked = !!res.data.sort_by_type;
   $("#mesh-obj").checked = !!res.data.mesh_obj;
+  $("#mesh-glb").checked = !!res.data.mesh_glb;
   $("#images-png").checked = !!res.data.images_png;
   $("#skip-defaults").checked = !!res.data.skip_defaults;
   $("#name-tpl").value = res.data.name_template || "";
@@ -1946,7 +1951,12 @@ $("#name-tpl").onchange = async () => {
 $("#mesh-obj").onchange = async () => {
   const res = await post("/api/settings", { mesh_obj: $("#mesh-obj").checked });
   if (!res.ok) { toast("err", esc(res.error)); return; }
-  toast("ok", res.data.mesh_obj ? "Meshes also get saved as .obj." : "Meshes are saved as .mesh only.");
+  toast("ok", res.data.mesh_obj ? "Meshes also get saved as .obj." : "Meshes won't get an .obj anymore.");
+};
+$("#mesh-glb").onchange = async () => {
+  const res = await post("/api/settings", { mesh_glb: $("#mesh-glb").checked });
+  if (!res.ok) { toast("err", esc(res.error)); return; }
+  toast("ok", res.data.mesh_glb ? "Meshes also get saved as .glb." : "Meshes won't get a .glb anymore.");
 };
 $("#sort-type").onchange = async () => {
   const res = await post("/api/settings", { sort_by_type: $("#sort-type").checked });

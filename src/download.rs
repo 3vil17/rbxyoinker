@@ -118,9 +118,18 @@ pub async fn fetch_and_save(
     std::fs::create_dir_all(&dir)?;
     let full = dir.join(&filename);
     std::fs::write(&full, &attempt.bytes)?;
-    if ext == "mesh" && settings.mesh_obj {
-        if let Some(obj) = crate::mesh::to_obj(&attempt.bytes) {
-            let _ = std::fs::write(full.with_extension("obj"), obj);
+    if ext == "mesh" && (settings.mesh_obj || settings.mesh_glb) {
+        if let Ok(mesh) = rbxmesh::read(&attempt.bytes) {
+            if settings.mesh_obj {
+                if let Ok(obj) = rbxmesh::to_obj(&mesh, 0) {
+                    let _ = std::fs::write(full.with_extension("obj"), obj);
+                }
+            }
+            if settings.mesh_glb {
+                if let Ok(glb) = rbxmesh::to_glb(&mesh, 0) {
+                    let _ = std::fs::write(full.with_extension("glb"), glb);
+                }
+            }
         }
     }
     let path = full.to_string_lossy().to_string();

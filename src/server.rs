@@ -450,6 +450,7 @@ async fn get_settings() -> Json<Value> {
         "save_dir": s.save_dir,
         "sort_by_type": s.sort_by_type,
         "mesh_obj": s.mesh_obj,
+        "mesh_glb": s.mesh_glb,
         "name_template": s.name_template,
         "images_png": s.images_png,
         "skip_defaults": s.skip_defaults,
@@ -474,6 +475,7 @@ struct SettingsBody {
     save_dir: Option<String>,
     sort_by_type: Option<bool>,
     mesh_obj: Option<bool>,
+    mesh_glb: Option<bool>,
     name_template: Option<String>,
     images_png: Option<bool>,
     skip_defaults: Option<bool>,
@@ -501,6 +503,9 @@ async fn set_settings(Json(body): Json<SettingsBody>) -> Json<Value> {
     }
     if let Some(obj) = body.mesh_obj {
         s.mesh_obj = obj;
+    }
+    if let Some(glb) = body.mesh_glb {
+        s.mesh_glb = glb;
     }
     if let Some(t) = body.name_template {
         let t = t.trim();
@@ -550,6 +555,7 @@ async fn set_settings(Json(body): Json<SettingsBody>) -> Json<Value> {
             "save_dir": s.save_dir,
             "sort_by_type": s.sort_by_type,
             "mesh_obj": s.mesh_obj,
+            "mesh_glb": s.mesh_glb,
             "name_template": s.name_template,
             "images_png": s.images_png,
         "skip_defaults": s.skip_defaults,
