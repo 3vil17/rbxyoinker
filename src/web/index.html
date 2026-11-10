@@ -158,6 +158,7 @@
   .st.error { background: rgba(236,59,71,0.12); color: rgb(208,96,112); }
   .st.working, .st.waiting, .st.downloading, .st.downloaded, .st.uploading { color: rgb(212,212,212); }
   .row .btn { padding: 4px 9px; font-size: 12px; }
+  .row .btn.ic { padding: 4px 6px; flex-shrink: 0; }
 
   input[type="text"], input[type="password"] {
     background: rgb(22, 22, 22); border: 1px solid rgba(255, 255, 255, 0.09); border-radius: 6px;
@@ -1153,6 +1154,7 @@ const ICONS = {
   copy: '<rect width="14" height="14" x="8" y="8" rx="2" ry="2"/><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"/>',
   plus: '<path d="M5 12h14"/><path d="M12 5v14"/>',
   x: '<path d="M18 6 6 18"/><path d="m6 6 12 12"/>',
+  crosshair: '<circle cx="12" cy="12" r="10"/><line x1="22" x2="18" y1="12" y2="12"/><line x1="6" x2="2" y1="12" y2="12"/><line x1="12" x2="12" y1="6" y2="2"/><line x1="12" x2="12" y1="22" y2="18"/>',
   plug: '<path d="M12 22v-5"/><path d="M9 8V2"/><path d="M15 8V2"/><path d="M18 8v5a4 4 0 0 1-4 4h-4a4 4 0 0 1-4-4V8Z"/>',
   move: '<path d="m16 3 4 4-4 4"/><path d="M20 7H4"/><path d="m8 21-4-4 4-4"/><path d="M4 17h16"/>',
   square: '<rect width="18" height="18" x="3" y="3" rx="2"/>',
@@ -1438,6 +1440,7 @@ async function pollStudio() {
   if (!res.ok) return;
   const s = res.data;
   const live = s.connected && s.seen_ago != null && s.seen_ago < 15;
+  if (live !== stLive) { stLive = live; if (mgJob) renderMigrate(); }
   $("#st-on").style.display = s.connected ? "" : "none";
   $("#st-pair").style.display = s.connected ? "none" : "";
   $("#st-state").innerHTML = '<span class="dot ' + (live ? "on" : "idle") + '"></span>' +
@@ -1456,6 +1459,7 @@ async function pollStudio() {
   }
 }
 let stCode = "";
+let stLive = false;
 async function newCode(e) { if (e) e.preventDefault(); await post("/api/studio/code", {}); pollStudio(); }
 $("#st-code-btn").onclick = () => newCode();
 $("#st-new").onclick = newCode;
@@ -1687,7 +1691,7 @@ function renderMigrate() {
   setTiles("#mg-stats", moved.length, { done, moved: c.ok, failed: c.error, left: moved.length - done });
   if (j.note !== mgNote) { mgNote = j.note; if (mgNote) showNote($("#mg-note"), "err", esc(mgNote)); }
   const mgList = j.items.filter((it) => !waiting(it) || mgScriptPicked.has(it.id));
-  const mgKey = JSON.stringify([to, j.checked, [...mgKindsOff], mgAccessPick, mgList.map((it) => [it.id, it.state, it.new_id, it.error, it.name, !!mgThumbs[it.id], mgAccess[it.id], it.reach, it.reach_error, isBefore(it)])]);
+  const mgKey = JSON.stringify([to, stLive, j.checked, [...mgKindsOff], mgAccessPick, mgList.map((it) => [it.id, it.state, it.new_id, it.error, it.name, !!mgThumbs[it.id], mgAccess[it.id], it.reach, it.reach_error, isBefore(it)])]);
   if ($("#mg-rows").dataset.key !== mgKey) $("#mg-rows").dataset.key = mgKey, $("#mg-rows").innerHTML = mgList.map((it) => {
     const mine = it.kind && it.owner !== to;
     const reach = { ok: "reachable", no: "blocked", reuse: "reuse", checking: "checking", queued: "queued" }[it.reach];
@@ -1702,7 +1706,8 @@ function renderMigrate() {
       (why ? '<div class="s err">' + esc(why) + "</div>"
         : '<div class="s">' + esc(it.type_label || "?") + (it.owner_name ? " · by " + esc(it.owner_name) : "") +
           (it.from_script ? ' · <span style="color:rgb(212,180,90)" title="' + esc(it.script) + '">in ' + esc(it.script.split(".").pop() || "a script") + "</span>" : "") + "</div>") +
-      "</div>" + (state ? '<span class="st ' + esc(state) + '">' + esc(state) + "</span>" : "") + "</div>";
+      "</div>" + (stLive ? '<button class="btn ic" data-show="' + it.id + '" title="Show in Studio">' + svg("crosshair") + "</button>" : "") +
+      (state ? '<span class="st ' + esc(state) + '">' + esc(state) + "</span>" : "") + "</div>";
   }).join("");
   $("#mg-start").disabled = j.running || !j.checked || !picked.length;
   $("#mg-check").disabled = j.running || !j.checked || !picked.length;
@@ -1754,6 +1759,12 @@ $("#mg-start").onclick = async () => {
   pollMigrate();
 };
 $("#mg-cancel").onclick = () => post("/api/migrate/cancel", {});
+$("#mg-rows").addEventListener("click", async (e) => {
+  const b = e.target.closest("button[data-show]"); if (!b) return;
+  const res = await post("/api/studio/show", { ids: [b.dataset.show] });
+  if (!res.ok) { showNote($("#mg-note"), "err", esc(res.error)); return; }
+  showNote($("#mg-note"), "info", res.data.live ? "Selecting it in Studio." : "Studio isn't open, it gets selected when the plugin connects.");
+});
 $("#mg-check").onclick = async () => {
   const a = mgAccount(); if (!a) return;
   const res = await post("/api/migrate/check", { user_id: a.user_id, to: $("#mg-to").value, ids: mgPicked().map((it) => String(it.id)) });

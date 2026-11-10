@@ -19,6 +19,7 @@ pub struct Pairing {
     tokens: Vec<String>,
     pub last_seen: Option<Instant>,
     pub place: String,
+    pub show: Vec<String>,
 }
 
 pub type Shared = Arc<Mutex<Pairing>>;
