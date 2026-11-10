@@ -913,7 +913,12 @@
 <script>
 const $ = (s) => document.querySelector(s);
 let offline = false, updating = false;
-async function api(path, opts) { const r = await fetch(path, opts); return r.json(); }
+async function api(path, opts) {
+  const r = await fetch(path, opts);
+  const j = await r.json();
+  if (j && j.update_required) setTimeout(checkUpdate, 0);
+  return j;
+}
 function post(path, body) {
   return api(path, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body || {}) });
 }

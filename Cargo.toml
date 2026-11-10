@@ -31,6 +31,7 @@ windows-sys = { version = "0.61", features = ["Win32_Foundation", "Win32_UI_Inpu
 
 [dev-dependencies]
 minisign = "0.10"
+tower = { version = "0.5", features = ["util"] }
 
 [profile.release]
 opt-level = "s"

@@ -105,6 +105,7 @@ struct AppState {
     update: Arc<Mutex<(&'static str, u64, u64)>>,
     migrate: crate::migrate::Shared,
     studio: crate::studio::Shared,
+    required: Arc<Mutex<Option<String>>>,
 }
 
 #[derive(Default)]
@@ -170,9 +171,17 @@ pub async fn run(updated: bool) -> std::io::Result<()> {
         update: Arc::new(Mutex::new(("", 0, 0))),
         migrate: Arc::default(),
         studio: crate::studio::load(),
+        required: Arc::new(Mutex::new(saved_requirement())),
     };
     state.pool.reload(&state.rb).await;
     refresh_plugin();
+    let watcher = state.clone();
+    tokio::spawn(async move {
+        loop {
+            check_releases(&watcher).await;
+            tokio::time::sleep(std::time::Duration::from_secs(30 * 60)).await;
+        }
+    });
 
     let app = Router::new()
         .route("/", get(index))
@@ -234,6 +243,7 @@ pub async fn run(updated: bool) -> std::io::Result<()> {
         .route("/api/history/clear", post(clear_history))
         .route("/api/reveal", post(reveal))
         .route("/api/pick-folder", post(pick_folder))
+        .layer(axum::middleware::from_fn_with_state(state.clone(), update_gate))
         .layer(axum::middleware::from_fn(same_site_only))
         .with_state(state.clone());
     tokio::spawn(quit_when_tab_closed(state));
@@ -662,24 +672,97 @@ fn clean_notes(notes: &str) -> String {
     notes.replace("<!-- important -->", "").replace("[important]", "").replace("[Important]", "").trim().to_string()
 }
 
-async fn update_check(State(st): State<AppState>) -> Json<Value> {
+const UPDATE_GATE_OPEN: &[&str] = &[
+    "/api/update",
+    "/api/update/install",
+    "/api/update/progress",
+    "/api/changelog",
+    "/api/changelog/seen",
+    "/api/ping",
+    "/api/bye",
+    "/api/quit",
+    "/api/quit/check",
+    "/api/bulk/status",
+    "/api/bulk/cancel",
+    "/api/migrate/job",
+    "/api/migrate/cancel",
+    "/api/studio/job",
+];
+
+fn saved_requirement() -> Option<String> {
+    let mut s = store::load_settings();
+    if s.required_version.is_empty() {
+        return None;
+    }
+    if version_tuple(&s.required_version) > version_tuple(env!("CARGO_PKG_VERSION")) {
+        return Some(s.required_version);
+    }
+    s.required_version.clear();
+    let _ = store::save_settings(&s);
+    None
+}
+
+fn set_requirement(st: &AppState, tag: Option<String>) {
+    let mut s = store::load_settings();
+    let saved = tag.clone().unwrap_or_default();
+    if s.required_version != saved {
+        s.required_version = saved;
+        let _ = store::save_settings(&s);
+    }
+    *st.required.lock().unwrap() = tag;
+}
+
+async fn check_releases(st: &AppState) -> Value {
     let current = env!("CARGO_PKG_VERSION");
     let Some(releases) = st.rb.releases().await else {
-        return ok(json!({ "available": false, "current": current }));
+        let Some(tag) = st.required.lock().unwrap().clone() else {
+            return json!({ "available": false, "current": current });
+        };
+        return json!({
+            "available": true,
+            "important": true,
+            "latest": tag,
+            "url": "https://github.com/3vil17/rbxyoinker/releases/latest",
+            "notes": "",
+            "can_install": false,
+            "current": current,
+        });
     };
     let newer: Vec<_> = releases.iter().filter(|r| version_tuple(&r.tag) > version_tuple(current)).collect();
+    let required = newer.iter().filter(|r| is_important(&r.notes)).max_by_key(|r| version_tuple(&r.tag));
+    set_requirement(st, required.map(|r| r.tag.clone()));
     let Some(latest) = newer.iter().max_by_key(|r| version_tuple(&r.tag)) else {
-        return ok(json!({ "available": false, "current": current }));
+        return json!({ "available": false, "current": current });
     };
-    ok(json!({
+    json!({
         "available": true,
-        "important": newer.iter().any(|r| is_important(&r.notes)),
+        "important": st.required.lock().unwrap().is_some(),
         "latest": latest.tag,
         "url": latest.url,
         "notes": clean_notes(&latest.notes),
         "can_install": latest.exe_url.is_some() && latest.sig_url.is_some(),
         "current": current,
-    }))
+    })
+}
+
+async fn update_check(State(st): State<AppState>) -> Json<Value> {
+    ok(check_releases(&st).await)
+}
+
+async fn update_gate(State(st): State<AppState>, req: axum::extract::Request, next: axum::middleware::Next) -> axum::response::Response {
+    let path = req.uri().path();
+    if !path.starts_with("/api/") || UPDATE_GATE_OPEN.contains(&path) {
+        return next.run(req).await;
+    }
+    let Some(tag) = st.required.lock().unwrap().clone() else {
+        return next.run(req).await;
+    };
+    let body = json!({
+        "ok": false,
+        "update_required": true,
+        "error": format!("rbxyoinker {tag} is an important update. Install it to keep using the app."),
+    });
+    (axum::http::StatusCode::UPGRADE_REQUIRED, Json(body)).into_response()
 }
 
 #[derive(Deserialize)]
@@ -1687,5 +1770,47 @@ mod tests {
         assert_eq!(text, "sound bytes");
         drop(archive);
         let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    fn gate_app(required: Option<&str>) -> Router {
+        let state = AppState {
+            rb: Roblox::new(),
+            pool: Pool::default(),
+            bulk: Arc::default(),
+            last_ping: Arc::new(Mutex::new(std::time::Instant::now())),
+            quit_when_done: Arc::default(),
+            update: Arc::new(Mutex::new(("", 0, 0))),
+            migrate: Arc::default(),
+            studio: Arc::default(),
+            required: Arc::new(Mutex::new(required.map(String::from))),
+        };
+        let open = || async { "open" };
+        Router::new()
+            .route("/", get(open))
+            .route("/api/download", post(open))
+            .route("/api/update", get(open))
+            .route("/api/bulk/status", get(open))
+            .layer(axum::middleware::from_fn_with_state(state.clone(), update_gate))
+            .with_state(state)
+    }
+
+    async fn status(app: Router, method: &str, path: &str) -> u16 {
+        use tower::ServiceExt;
+        let req = axum::http::Request::builder().method(method).uri(path).body(axum::body::Body::empty()).unwrap();
+        app.oneshot(req).await.unwrap().status().as_u16()
+    }
+
+    #[tokio::test]
+    async fn pending_important_update_blocks_work() {
+        let app = gate_app(Some("v9.9.9"));
+        assert_eq!(status(app.clone(), "POST", "/api/download").await, 426);
+        assert_eq!(status(app.clone(), "GET", "/api/update").await, 200);
+        assert_eq!(status(app.clone(), "GET", "/api/bulk/status").await, 200);
+        assert_eq!(status(app, "GET", "/").await, 200);
+    }
+
+    #[tokio::test]
+    async fn no_pending_update_lets_work_through() {
+        assert_eq!(status(gate_app(None), "POST", "/api/download").await, 200);
     }
 }
