@@ -4,6 +4,7 @@
 mod convert;
 mod download;
 mod error;
+mod mainacct;
 mod migrate;
 mod pool;
 mod resolver;

@@ -220,6 +220,7 @@ pub async fn run(updated: bool) -> std::io::Result<()> {
         .route("/api/studio/unpair", post(studio_unpair))
         .route("/api/migrate/job", get(migrate_job))
         .route("/api/migrate/targets", get(migrate_targets))
+        .route("/api/migrate/account-check", get(migrate_account_check))
         .route("/api/migrate/start", post(migrate_start))
         .route("/api/migrate/cancel", post(migrate_cancel))
         .route("/api/migrate/forget", post(migrate_forget))
@@ -1298,6 +1299,18 @@ async fn migrate_targets(State(st): State<AppState>) -> Json<Value> {
         }));
     }
     ok(json!(out))
+}
+
+#[derive(Deserialize)]
+struct AccountCheckQ {
+    user_id: i64,
+}
+
+async fn migrate_account_check(State(st): State<AppState>, Query(q): Query<AccountCheckQ>) -> Json<Value> {
+    let Some(cookie) = st.pool.cookie_for_user(q.user_id) else {
+        return fail("that account isn't signed in anymore, recheck it in Accounts");
+    };
+    ok(json!(crate::mainacct::check(&st.rb, &cookie, q.user_id).await))
 }
 
 #[derive(Deserialize)]
