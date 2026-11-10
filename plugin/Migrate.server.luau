@@ -12,17 +12,6 @@ end
 
 local pluginVersion = "dev"
 local serverUrl = "http://127.0.0.1:48620"
-local pageColor = Color3.fromRGB(22, 22, 22)
-local cardColor = Color3.fromRGB(28, 30, 32)
-local buttonColor = Color3.fromRGB(40, 42, 44)
-local buttonHover = Color3.fromRGB(54, 56, 58)
-local text = Color3.fromRGB(224, 224, 224)
-local muted = Color3.fromRGB(160, 160, 160)
-local dim = Color3.fromRGB(110, 110, 110)
-local bright = Color3.fromRGB(240, 240, 240)
-local green = Color3.fromRGB(59, 234, 87)
-local okText = Color3.fromRGB(59, 186, 87)
-local red = Color3.fromRGB(240, 120, 132)
 local regular = Font.new("rbxasset://fonts/families/Montserrat.json", Enum.FontWeight.Regular)
 local medium = Font.new("rbxasset://fonts/families/Montserrat.json", Enum.FontWeight.Medium)
 local semibold = Font.new("rbxasset://fonts/families/Montserrat.json", Enum.FontWeight.SemiBold)
@@ -30,6 +19,57 @@ local bold = Font.new("rbxasset://fonts/families/Montserrat.json", Enum.FontWeig
 local mono = Font.new("rbxasset://fonts/families/RobotoMono.json", Enum.FontWeight.Medium)
 local quick = TweenInfo.new(0.15, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
 local smooth = TweenInfo.new(0.35, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
+
+local palettes = {
+	dark = {
+		page = Color3.fromRGB(22, 22, 22),
+		card = Color3.fromRGB(28, 30, 32),
+		field = Color3.fromRGB(22, 22, 22),
+		button = Color3.fromRGB(39, 41, 43),
+		buttonHover = Color3.fromRGB(51, 53, 55),
+		main = Color3.fromRGB(55, 57, 59),
+		mainHover = Color3.fromRGB(69, 71, 73),
+		line = Color3.fromRGB(255, 255, 255),
+		track = Color3.fromRGB(44, 46, 48),
+		scroll = Color3.fromRGB(90, 90, 90),
+		text = Color3.fromRGB(212, 212, 212),
+		bright = Color3.fromRGB(255, 255, 255),
+		label = Color3.fromRGB(170, 170, 170),
+		muted = Color3.fromRGB(136, 136, 136),
+		dim = Color3.fromRGB(100, 100, 100),
+		placeholder = Color3.fromRGB(64, 64, 64),
+		green = Color3.fromRGB(59, 234, 87),
+		okText = Color3.fromRGB(59, 186, 87),
+		red = Color3.fromRGB(236, 59, 71),
+		errText = Color3.fromRGB(208, 96, 112),
+		accent = "#3BEA57",
+	},
+	light = {
+		page = Color3.fromRGB(243, 243, 243),
+		card = Color3.fromRGB(255, 255, 255),
+		field = Color3.fromRGB(246, 246, 246),
+		button = Color3.fromRGB(241, 241, 241),
+		buttonHover = Color3.fromRGB(229, 229, 229),
+		main = Color3.fromRGB(226, 226, 226),
+		mainHover = Color3.fromRGB(212, 212, 212),
+		line = Color3.fromRGB(0, 0, 0),
+		track = Color3.fromRGB(226, 226, 226),
+		scroll = Color3.fromRGB(180, 180, 180),
+		text = Color3.fromRGB(40, 40, 40),
+		bright = Color3.fromRGB(15, 15, 15),
+		label = Color3.fromRGB(90, 90, 90),
+		muted = Color3.fromRGB(105, 105, 105),
+		dim = Color3.fromRGB(135, 135, 135),
+		placeholder = Color3.fromRGB(190, 190, 190),
+		green = Color3.fromRGB(46, 196, 72),
+		okText = Color3.fromRGB(28, 140, 52),
+		red = Color3.fromRGB(220, 50, 62),
+		errText = Color3.fromRGB(190, 40, 55),
+		accent = "#1C8C34",
+	},
+}
+local toned = { "BackgroundColor3", "TextColor3", "ImageColor3", "Color", "PlaceholderColor3", "ScrollBarImageColor3" }
+local palette = palettes.dark
 
 local icons = {
 	plug = { "rbxassetid://136111683851629", 525, 800 },
@@ -71,92 +111,95 @@ local lastMap = {}
 local seenRun = -1
 local appVersion = nil
 local busy = false
+local noteMessage = nil
+local noteKind = nil
+
+local function tone(inst, map)
+	for prop, key in map do
+		inst:SetAttribute("Tone" .. prop, key)
+		inst[prop] = palette[key]
+	end
+end
+
+local function setIcon(image, icon)
+	image.Image = icon[1]
+	image.ImageRectOffset = Vector2.new(icon[2], icon[3])
+end
 
 local toolbar = plugin:CreateToolbar("rbxyoinker")
-local toggle = toolbar:CreateButton("Migrate", "Move this place's assets to another group with rbxyoinker", "")
+local toggle = toolbar:CreateButton("Migrate", "Move this place's assets to another group with rbxyoinker", "rbxassetid://87991195982058")
 toggle.ClickableWhenViewportHidden = true
 
 local widget = plugin:CreateDockWidgetPluginGui(
 	"RbxyoinkerMigratePanel",
-	DockWidgetPluginGuiInfo.new(Enum.InitialDockState.Right, false, false, 380, 600, 300, 380)
+	DockWidgetPluginGuiInfo.new(Enum.InitialDockState.Right, false, false, 340, 600, 240, 320)
 )
 widget.Title = "rbxyoinker"
 
 local root = Instance.new("ScrollingFrame")
 root.Size = UDim2.fromScale(1, 1)
-root.BackgroundColor3 = pageColor
 root.BorderSizePixel = 0
 root.CanvasSize = UDim2.new()
 root.AutomaticCanvasSize = Enum.AutomaticSize.Y
 root.ScrollingDirection = Enum.ScrollingDirection.Y
 root.VerticalScrollBarInset = Enum.ScrollBarInset.ScrollBar
 root.ScrollBarThickness = 5
-root.ScrollBarImageColor3 = Color3.fromRGB(90, 90, 90)
+tone(root, { BackgroundColor3 = "page", ScrollBarImageColor3 = "scroll" })
 root.Parent = widget
 
 local rootPadding = Instance.new("UIPadding")
-rootPadding.PaddingTop = UDim.new(0, 16)
-rootPadding.PaddingBottom = UDim.new(0, 16)
-rootPadding.PaddingLeft = UDim.new(0, 14)
-rootPadding.PaddingRight = UDim.new(0, 14)
+rootPadding.PaddingTop = UDim.new(0, 14)
+rootPadding.PaddingBottom = UDim.new(0, 14)
+rootPadding.PaddingLeft = UDim.new(0, 12)
+rootPadding.PaddingRight = UDim.new(0, 12)
 rootPadding.Parent = root
 
 local rootLayout = Instance.new("UIListLayout")
-rootLayout.Padding = UDim.new(0, 12)
+rootLayout.Padding = UDim.new(0, 10)
 rootLayout.SortOrder = Enum.SortOrder.LayoutOrder
 rootLayout.Parent = root
 
 local header = Instance.new("Frame")
 header.BackgroundTransparency = 1
-header.Size = UDim2.new(1, 0, 0, 44)
+header.Size = UDim2.new(1, 0, 0, 30)
 header.LayoutOrder = 1
 header.Parent = root
 
 local title = Instance.new("TextLabel")
 title.BackgroundTransparency = 1
-title.Size = UDim2.new(1, -140, 0, 26)
+title.Size = UDim2.fromOffset(0, 30)
+title.AutomaticSize = Enum.AutomaticSize.X
 title.FontFace = bold
 title.RichText = true
-title.Text = 'rbx<font color="#3BEA57">yoinker</font>'
-title.TextColor3 = Color3.fromRGB(255, 255, 255)
-title.TextSize = 22
+title.TextSize = 20
 title.TextXAlignment = Enum.TextXAlignment.Left
+tone(title, { TextColor3 = "bright" })
 title.Parent = header
 
-local subtitle = Instance.new("TextLabel")
-subtitle.BackgroundTransparency = 1
-subtitle.Position = UDim2.fromOffset(0, 27)
-subtitle.Size = UDim2.new(1, -140, 0, 16)
-subtitle.FontFace = medium
-subtitle.Text = "Migrate"
-subtitle.TextColor3 = muted
-subtitle.TextSize = 13
-subtitle.TextXAlignment = Enum.TextXAlignment.Left
-subtitle.Parent = header
+local round = Instance.new("UICorner")
+round.CornerRadius = UDim.new(1, 0)
+local hairline = Instance.new("UIStroke")
+hairline.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
+hairline.Transparency = 0.9
+tone(hairline, { Color = "line" })
 
 local pill = Instance.new("Frame")
 pill.AnchorPoint = Vector2.new(1, 0.5)
 pill.Position = UDim2.fromScale(1, 0.5)
-pill.Size = UDim2.fromOffset(0, 28)
+pill.Size = UDim2.fromOffset(0, 26)
 pill.AutomaticSize = Enum.AutomaticSize.X
-pill.BackgroundColor3 = buttonColor
+tone(pill, { BackgroundColor3 = "button" })
 pill.Parent = header
-local round = Instance.new("UICorner")
-round.CornerRadius = UDim.new(1, 0)
-round.Parent = pill
-local hairline = Instance.new("UIStroke")
-hairline.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
-hairline.Color = Color3.fromRGB(255, 255, 255)
-hairline.Transparency = 0.9
-hairline.Parent = pill
+round:Clone().Parent = pill
+hairline:Clone().Parent = pill
 local pillPadding = Instance.new("UIPadding")
 pillPadding.PaddingLeft = UDim.new(0, 10)
-pillPadding.PaddingRight = UDim.new(0, 12)
+pillPadding.PaddingRight = UDim.new(0, 11)
 pillPadding.Parent = pill
 local pillLayout = Instance.new("UIListLayout")
 pillLayout.FillDirection = Enum.FillDirection.Horizontal
 pillLayout.VerticalAlignment = Enum.VerticalAlignment.Center
-pillLayout.Padding = UDim.new(0, 8)
+pillLayout.Padding = UDim.new(0, 7)
 pillLayout.SortOrder = Enum.SortOrder.LayoutOrder
 pillLayout.Parent = pill
 
@@ -170,9 +213,9 @@ local ring = Instance.new("Frame")
 ring.AnchorPoint = Vector2.new(0.5, 0.5)
 ring.Position = UDim2.fromScale(0.5, 0.5)
 ring.Size = UDim2.fromOffset(8, 8)
-ring.BackgroundColor3 = green
 ring.BackgroundTransparency = 1
 ring.BorderSizePixel = 0
+tone(ring, { BackgroundColor3 = "green" })
 ring.Parent = dotHolder
 round:Clone().Parent = ring
 
@@ -180,25 +223,25 @@ local dot = Instance.new("Frame")
 dot.AnchorPoint = Vector2.new(0.5, 0.5)
 dot.Position = UDim2.fromScale(0.5, 0.5)
 dot.Size = UDim2.fromOffset(8, 8)
-dot.BackgroundColor3 = dim
 dot.BorderSizePixel = 0
+tone(dot, { BackgroundColor3 = "dim" })
 dot.Parent = dotHolder
 round:Clone().Parent = dot
 
 local pillText = Instance.new("TextLabel")
 pillText.BackgroundTransparency = 1
-pillText.Size = UDim2.fromOffset(0, 28)
+pillText.Size = UDim2.fromOffset(0, 26)
 pillText.AutomaticSize = Enum.AutomaticSize.X
 pillText.FontFace = medium
-pillText.TextColor3 = text
-pillText.TextSize = 13
+pillText.TextSize = 12
 pillText.LayoutOrder = 2
+tone(pillText, { TextColor3 = "text" })
 pillText.Parent = pill
 
 local cardTemplate = Instance.new("Frame")
 cardTemplate.Size = UDim2.fromScale(1, 0)
 cardTemplate.AutomaticSize = Enum.AutomaticSize.Y
-cardTemplate.BackgroundColor3 = cardColor
+tone(cardTemplate, { BackgroundColor3 = "card" })
 local cardCorner = Instance.new("UICorner")
 cardCorner.CornerRadius = UDim.new(0, 8)
 cardCorner.Parent = cardTemplate
@@ -210,198 +253,261 @@ cardGradient.Rotation = 90
 cardGradient.Transparency = NumberSequence.new(0.88, 0.96)
 cardGradient.Parent = cardStroke
 local cardPadding = Instance.new("UIPadding")
-cardPadding.PaddingTop = UDim.new(0, 16)
-cardPadding.PaddingBottom = UDim.new(0, 16)
-cardPadding.PaddingLeft = UDim.new(0, 16)
-cardPadding.PaddingRight = UDim.new(0, 16)
+cardPadding.PaddingTop = UDim.new(0, 14)
+cardPadding.PaddingBottom = UDim.new(0, 14)
+cardPadding.PaddingLeft = UDim.new(0, 14)
+cardPadding.PaddingRight = UDim.new(0, 14)
 cardPadding.Parent = cardTemplate
 local cardLayout = Instance.new("UIListLayout")
-cardLayout.Padding = UDim.new(0, 12)
+cardLayout.Padding = UDim.new(0, 10)
 cardLayout.SortOrder = Enum.SortOrder.LayoutOrder
 cardLayout.Parent = cardTemplate
 
 local headingTemplate = Instance.new("Frame")
 headingTemplate.BackgroundTransparency = 1
-headingTemplate.Size = UDim2.new(1, 0, 0, 22)
+headingTemplate.Size = UDim2.new(1, 0, 0, 18)
 headingTemplate.LayoutOrder = 1
-local rowLayout = Instance.new("UIListLayout")
-rowLayout.FillDirection = Enum.FillDirection.Horizontal
-rowLayout.VerticalAlignment = Enum.VerticalAlignment.Center
-rowLayout.Padding = UDim.new(0, 8)
-rowLayout.SortOrder = Enum.SortOrder.LayoutOrder
-rowLayout.Parent = headingTemplate
 local iconTemplate = Instance.new("ImageLabel")
 iconTemplate.Name = "Icon"
 iconTemplate.BackgroundTransparency = 1
-iconTemplate.Size = UDim2.fromOffset(18, 18)
+iconTemplate.Size = UDim2.fromOffset(15, 15)
 iconTemplate.ImageRectSize = Vector2.new(24, 24)
-iconTemplate.ImageColor3 = text
 iconTemplate.LayoutOrder = 1
-iconTemplate.Parent = headingTemplate
+tone(iconTemplate, { ImageColor3 = "label" })
+local headingIcon = iconTemplate:Clone()
+headingIcon.AnchorPoint = Vector2.new(0, 0.5)
+headingIcon.Position = UDim2.fromScale(0, 0.5)
+headingIcon.Parent = headingTemplate
 local headingText = Instance.new("TextLabel")
 headingText.Name = "Label"
 headingText.BackgroundTransparency = 1
-headingText.Size = UDim2.new(1, -26, 0, 22)
+headingText.Position = UDim2.fromOffset(22, 0)
+headingText.Size = UDim2.new(1, -22, 1, 0)
 headingText.FontFace = semibold
-headingText.TextColor3 = bright
-headingText.TextSize = 16
+headingText.TextSize = 14
 headingText.TextTruncate = Enum.TextTruncate.AtEnd
 headingText.TextXAlignment = Enum.TextXAlignment.Left
-headingText.LayoutOrder = 2
+tone(headingText, { TextColor3 = "label" })
 headingText.Parent = headingTemplate
+local headingAside = Instance.new("TextLabel")
+headingAside.Name = "Aside"
+headingAside.BackgroundTransparency = 1
+headingAside.AnchorPoint = Vector2.new(1, 0)
+headingAside.Position = UDim2.fromScale(1, 0)
+headingAside.Size = UDim2.fromScale(0.4, 1)
+headingAside.FontFace = medium
+headingAside.Text = ""
+headingAside.TextSize = 12
+headingAside.TextTruncate = Enum.TextTruncate.AtEnd
+headingAside.TextXAlignment = Enum.TextXAlignment.Right
+tone(headingAside, { TextColor3 = "dim" })
+headingAside.Parent = headingTemplate
 
 local hintTemplate = Instance.new("TextLabel")
 hintTemplate.BackgroundTransparency = 1
 hintTemplate.Size = UDim2.fromScale(1, 0)
 hintTemplate.AutomaticSize = Enum.AutomaticSize.Y
 hintTemplate.FontFace = regular
-hintTemplate.TextColor3 = muted
-hintTemplate.TextSize = 14
+hintTemplate.LineHeight = 1.15
+hintTemplate.TextSize = 13
 hintTemplate.TextWrapped = true
 hintTemplate.TextXAlignment = Enum.TextXAlignment.Left
 hintTemplate.LayoutOrder = 2
+tone(hintTemplate, { TextColor3 = "muted" })
 
-local buttonTemplate = Instance.new("TextButton")
-buttonTemplate.Size = UDim2.new(1, 0, 0, 44)
-buttonTemplate.BackgroundColor3 = buttonColor
-buttonTemplate.AutoButtonColor = false
-buttonTemplate.Text = ""
 local buttonCorner = Instance.new("UICorner")
 buttonCorner.CornerRadius = UDim.new(0, 6)
-buttonCorner.Parent = buttonTemplate
+
+local buttonTemplate = Instance.new("TextButton")
+buttonTemplate.Size = UDim2.new(1, 0, 0, 34)
+buttonTemplate.AutoButtonColor = false
+buttonTemplate.Text = ""
+tone(buttonTemplate, { BackgroundColor3 = "button" })
+buttonCorner:Clone().Parent = buttonTemplate
 hairline:Clone().Parent = buttonTemplate
 local buttonScale = Instance.new("UIScale")
 buttonScale.Parent = buttonTemplate
-local buttonLayout = rowLayout:Clone()
+local buttonLayout = Instance.new("UIListLayout")
+buttonLayout.FillDirection = Enum.FillDirection.Horizontal
 buttonLayout.HorizontalAlignment = Enum.HorizontalAlignment.Center
+buttonLayout.VerticalAlignment = Enum.VerticalAlignment.Center
+buttonLayout.Padding = UDim.new(0, 7)
+buttonLayout.SortOrder = Enum.SortOrder.LayoutOrder
 buttonLayout.Parent = buttonTemplate
-iconTemplate:Clone().Parent = buttonTemplate
-local buttonText = headingText:Clone()
-buttonText.Size = UDim2.fromOffset(0, 22)
+local buttonIcon = iconTemplate:Clone()
+buttonIcon.Size = UDim2.fromOffset(14, 14)
+tone(buttonIcon, { ImageColor3 = "text" })
+buttonIcon.Parent = buttonTemplate
+local buttonText = Instance.new("TextLabel")
+buttonText.Name = "Label"
+buttonText.BackgroundTransparency = 1
+buttonText.Size = UDim2.fromOffset(0, 20)
 buttonText.AutomaticSize = Enum.AutomaticSize.X
 buttonText.FontFace = medium
-buttonText.TextColor3 = text
-buttonText.TextSize = 15
+buttonText.TextSize = 13
+buttonText.LayoutOrder = 2
+tone(buttonText, { TextColor3 = "text" })
 buttonText.Parent = buttonTemplate
+
+local mainTemplate = buttonTemplate:Clone()
+tone(mainTemplate, { BackgroundColor3 = "main" })
+tone(mainTemplate.Label, { TextColor3 = "bright" })
+tone(mainTemplate.Icon, { ImageColor3 = "bright" })
+mainTemplate.UIStroke.Transparency = 0.82
+
+local function makeHeading(card, icon, label)
+	local heading = headingTemplate:Clone()
+	setIcon(heading.Icon, icon)
+	heading.Label.Text = label
+	heading.Parent = card
+	return heading
+end
 
 local connectCard = cardTemplate:Clone()
 connectCard.LayoutOrder = 2
 connectCard.Parent = root
-local connectHeading = headingTemplate:Clone()
-connectHeading.Icon.Image = icons.plug[1]
-connectHeading.Icon.ImageRectOffset = Vector2.new(icons.plug[2], icons.plug[3])
-connectHeading.Label.Text = "Connect to rbxyoinker"
-connectHeading.Parent = connectCard
+makeHeading(connectCard, icons.plug, "Connection")
+
+local pairBox = Instance.new("Frame")
+pairBox.BackgroundTransparency = 1
+pairBox.Size = UDim2.fromScale(1, 0)
+pairBox.AutomaticSize = Enum.AutomaticSize.Y
+pairBox.LayoutOrder = 2
+pairBox.Parent = connectCard
+cardLayout:Clone().Parent = pairBox
+
 local connectHint = hintTemplate:Clone()
 connectHint.Text = "In the app, open the Migrate tab and click Get a code, then type it in here. You only do this once."
-connectHint.Parent = connectCard
+connectHint.LayoutOrder = 1
+connectHint.Parent = pairBox
 
 local codeBox = Instance.new("TextBox")
-codeBox.Size = UDim2.new(1, 0, 0, 60)
-codeBox.BackgroundColor3 = pageColor
+codeBox.Size = UDim2.new(1, 0, 0, 50)
 codeBox.ClearTextOnFocus = false
 codeBox.FontFace = mono
 codeBox.PlaceholderText = "000000"
-codeBox.PlaceholderColor3 = Color3.fromRGB(64, 64, 64)
 codeBox.Text = ""
-codeBox.TextColor3 = Color3.fromRGB(255, 255, 255)
-codeBox.TextSize = 32
-codeBox.LayoutOrder = 3
-codeBox.Parent = connectCard
+codeBox.TextSize = 28
+codeBox.LayoutOrder = 2
+tone(codeBox, { BackgroundColor3 = "field", TextColor3 = "bright", PlaceholderColor3 = "placeholder" })
+codeBox.Parent = pairBox
 buttonCorner:Clone().Parent = codeBox
 local codeStroke = hairline:Clone()
 codeStroke.Transparency = 0.91
 codeStroke.Parent = codeBox
 
-local connectButton = buttonTemplate:Clone()
-connectButton.Icon.Image = icons.link[1]
-connectButton.Icon.ImageRectOffset = Vector2.new(icons.link[2], icons.link[3])
+local connectButton = mainTemplate:Clone()
+setIcon(connectButton.Icon, icons.link)
 connectButton.Label.Text = "Connect"
-connectButton.LayoutOrder = 4
-connectButton.Parent = connectCard
+connectButton.LayoutOrder = 3
+connectButton.Parent = pairBox
 
-local placeCard = cardTemplate:Clone()
-placeCard.LayoutOrder = 3
-placeCard.Parent = root
-local placeHeading = headingTemplate:Clone()
-placeHeading.Icon.Image = icons.radio[1]
-placeHeading.Icon.ImageRectOffset = Vector2.new(icons.radio[2], icons.radio[3])
-placeHeading.Label.Text = game.Name
-placeHeading.Parent = placeCard
-local placeHint = hintTemplate:Clone()
-placeHint.Text = "Scan sends this place's asset ids to the app. Pick where they go in the Migrate tab, the new ids get swapped in here when it's done."
-placeHint.Parent = placeCard
-local scanButton = buttonTemplate:Clone()
-scanButton.Icon.Image = icons.scan[1]
-scanButton.Icon.ImageRectOffset = Vector2.new(icons.scan[2], icons.scan[3])
+local pairedRow = Instance.new("Frame")
+pairedRow.BackgroundTransparency = 1
+pairedRow.Size = UDim2.new(1, 0, 0, 28)
+pairedRow.LayoutOrder = 3
+pairedRow.Parent = connectCard
+
+local pairedText = hintTemplate:Clone()
+pairedText.AutomaticSize = Enum.AutomaticSize.None
+pairedText.Size = UDim2.new(1, -110, 1, 0)
+pairedText.TextWrapped = false
+pairedText.TextTruncate = Enum.TextTruncate.AtEnd
+pairedText.Text = "This Studio is paired with the app."
+pairedText.Parent = pairedRow
+
+local disconnectButton = buttonTemplate:Clone()
+disconnectButton.AnchorPoint = Vector2.new(1, 0.5)
+disconnectButton.Position = UDim2.fromScale(1, 0.5)
+disconnectButton.Size = UDim2.fromOffset(0, 28)
+disconnectButton.AutomaticSize = Enum.AutomaticSize.X
+setIcon(disconnectButton.Icon, icons.unplug)
+disconnectButton.Icon.Size = UDim2.fromOffset(13, 13)
+disconnectButton.Label.Text = "Disconnect"
+disconnectButton.Label.TextSize = 12
+tone(disconnectButton.Label, { TextColor3 = "muted" })
+tone(disconnectButton.Icon, { ImageColor3 = "muted" })
+disconnectButton.Parent = pairedRow
+local disconnectPadding = Instance.new("UIPadding")
+disconnectPadding.PaddingLeft = UDim.new(0, 10)
+disconnectPadding.PaddingRight = UDim.new(0, 10)
+disconnectPadding.Parent = disconnectButton
+
+local scanCard = cardTemplate:Clone()
+scanCard.LayoutOrder = 3
+scanCard.Parent = root
+local scanHeading = makeHeading(scanCard, icons.scan, "Scan")
+scanHeading.Aside.Text = game.Name
+local scanHint = hintTemplate:Clone()
+scanHint.Text = "Sends this place's asset ids to the app. Pick where they go in the Migrate tab, the new ids get swapped in here when it's done."
+scanHint.Parent = scanCard
+local scanButton = mainTemplate:Clone()
+setIcon(scanButton.Icon, icons.scan)
 scanButton.Label.Text = "Scan place"
 scanButton.LayoutOrder = 3
-scanButton.Parent = placeCard
+scanButton.Parent = scanCard
 local lastScan = hintTemplate:Clone()
-lastScan.TextSize = 13
-lastScan.TextColor3 = dim
+lastScan.TextSize = 12
 lastScan.Text = ""
 lastScan.Visible = false
 lastScan.LayoutOrder = 4
-lastScan.Parent = placeCard
+tone(lastScan, { TextColor3 = "dim" })
+lastScan.Parent = scanCard
 
 local progressCard = cardTemplate:Clone()
 progressCard.LayoutOrder = 4
 progressCard.Visible = false
 progressCard.Parent = root
-local progressHeading = headingTemplate:Clone()
-progressHeading.Icon.Image = icons.move[1]
-progressHeading.Icon.ImageRectOffset = Vector2.new(icons.move[2], icons.move[3])
-progressHeading.Label.Text = "Progress"
-progressHeading.Parent = progressCard
+local progressHeading = makeHeading(progressCard, icons.move, "Progress")
 
 local track = Instance.new("Frame")
 track.Size = UDim2.new(1, 0, 0, 6)
-track.BackgroundColor3 = Color3.fromRGB(44, 46, 48)
 track.BorderSizePixel = 0
 track.LayoutOrder = 2
+tone(track, { BackgroundColor3 = "track" })
 track.Parent = progressCard
 round:Clone().Parent = track
 
 local fill = Instance.new("Frame")
 fill.Size = UDim2.fromScale(0, 1)
-fill.BackgroundColor3 = green
 fill.BorderSizePixel = 0
+tone(fill, { BackgroundColor3 = "green" })
 fill.Parent = track
 round:Clone().Parent = fill
 
 local stats = Instance.new("Frame")
 stats.BackgroundTransparency = 1
-stats.Size = UDim2.new(1, 0, 0, 58)
+stats.Size = UDim2.new(1, 0, 0, 52)
 stats.LayoutOrder = 3
 stats.Parent = progressCard
 local statsLayout = Instance.new("UIListLayout")
 statsLayout.FillDirection = Enum.FillDirection.Horizontal
-statsLayout.Padding = UDim.new(0, 8)
+statsLayout.Padding = UDim.new(0, 6)
 statsLayout.SortOrder = Enum.SortOrder.LayoutOrder
 statsLayout.Parent = stats
 
 local tileTemplate = Instance.new("Frame")
-tileTemplate.Size = UDim2.new(1 / 3, -6, 1, 0)
-tileTemplate.BackgroundColor3 = pageColor
+tileTemplate.Size = UDim2.new(1 / 3, -4, 1, 0)
+tone(tileTemplate, { BackgroundColor3 = "field" })
 buttonCorner:Clone().Parent = tileTemplate
 local tileValue = Instance.new("TextLabel")
 tileValue.Name = "Value"
 tileValue.BackgroundTransparency = 1
-tileValue.Position = UDim2.fromOffset(0, 8)
-tileValue.Size = UDim2.new(1, 0, 0, 24)
+tileValue.Position = UDim2.fromOffset(0, 7)
+tileValue.Size = UDim2.new(1, 0, 0, 22)
 tileValue.FontFace = bold
 tileValue.Text = "0"
-tileValue.TextColor3 = bright
-tileValue.TextSize = 20
+tileValue.TextSize = 18
+tileValue.TextTruncate = Enum.TextTruncate.AtEnd
+tone(tileValue, { TextColor3 = "bright" })
 tileValue.Parent = tileTemplate
 local tileCaption = tileValue:Clone()
 tileCaption.Name = "Caption"
-tileCaption.Position = UDim2.fromOffset(0, 33)
-tileCaption.Size = UDim2.new(1, 0, 0, 16)
+tileCaption.Position = UDim2.fromOffset(0, 30)
+tileCaption.Size = UDim2.new(1, 0, 0, 14)
 tileCaption.FontFace = medium
-tileCaption.TextColor3 = dim
-tileCaption.TextSize = 12
+tileCaption.TextSize = 11
+tone(tileCaption, { TextColor3 = "dim" })
 tileCaption.Parent = tileTemplate
 
 local tiles = {}
@@ -419,8 +525,7 @@ for order, name in { "done", "moved", "failed" } do
 end
 
 local applyButton = buttonTemplate:Clone()
-applyButton.Icon.Image = icons.refresh[1]
-applyButton.Icon.ImageRectOffset = Vector2.new(icons.refresh[2], icons.refresh[3])
+setIcon(applyButton.Icon, icons.refresh)
 applyButton.Label.Text = "Swap ids again"
 applyButton.LayoutOrder = 4
 applyButton.Visible = false
@@ -434,8 +539,8 @@ note.Visible = false
 note.Parent = root
 buttonCorner:Clone().Parent = note
 local notePadding = Instance.new("UIPadding")
-notePadding.PaddingTop = UDim.new(0, 11)
-notePadding.PaddingBottom = UDim.new(0, 11)
+notePadding.PaddingTop = UDim.new(0, 9)
+notePadding.PaddingBottom = UDim.new(0, 9)
 notePadding.PaddingLeft = UDim.new(0, 12)
 notePadding.PaddingRight = UDim.new(0, 12)
 notePadding.Parent = note
@@ -443,55 +548,41 @@ local noteIcon = iconTemplate:Clone()
 noteIcon.Position = UDim2.fromOffset(0, 1)
 noteIcon.Parent = note
 local noteText = hintTemplate:Clone()
-noteText.Position = UDim2.fromOffset(28, 0)
-noteText.Size = UDim2.new(1, -28, 0, 0)
+noteText.Position = UDim2.fromOffset(24, 0)
+noteText.Size = UDim2.new(1, -24, 0, 0)
 noteText.FontFace = medium
 noteText.Parent = note
 
-local footer = Instance.new("Frame")
+local footer = Instance.new("TextLabel")
 footer.BackgroundTransparency = 1
-footer.Size = UDim2.new(1, 0, 0, 26)
+footer.Size = UDim2.fromScale(1, 0)
+footer.AutomaticSize = Enum.AutomaticSize.Y
+footer.FontFace = medium
+footer.TextSize = 11
+footer.TextWrapped = true
+footer.TextXAlignment = Enum.TextXAlignment.Left
 footer.LayoutOrder = 6
+tone(footer, { TextColor3 = "dim" })
 footer.Parent = root
 
-local versionLabel = Instance.new("TextLabel")
-versionLabel.BackgroundTransparency = 1
-versionLabel.Size = UDim2.new(1, -120, 1, 0)
-versionLabel.FontFace = medium
-versionLabel.TextColor3 = dim
-versionLabel.TextSize = 12
-versionLabel.TextTruncate = Enum.TextTruncate.AtEnd
-versionLabel.TextXAlignment = Enum.TextXAlignment.Left
-versionLabel.Parent = footer
-
-local disconnectButton = Instance.new("TextButton")
-disconnectButton.AnchorPoint = Vector2.new(1, 0)
-disconnectButton.Position = UDim2.fromScale(1, 0)
-disconnectButton.BackgroundTransparency = 1
-disconnectButton.Size = UDim2.fromOffset(0, 26)
-disconnectButton.AutomaticSize = Enum.AutomaticSize.X
-disconnectButton.Text = ""
-disconnectButton.Parent = footer
-rowLayout:Clone().Parent = disconnectButton
-local disconnectIcon = iconTemplate:Clone()
-disconnectIcon.Size = UDim2.fromOffset(15, 15)
-disconnectIcon.Image = icons.unplug[1]
-disconnectIcon.ImageRectOffset = Vector2.new(icons.unplug[2], icons.unplug[3])
-disconnectIcon.ImageColor3 = muted
-disconnectIcon.Parent = disconnectButton
-local disconnectText = buttonText:Clone()
-disconnectText.Text = "Disconnect"
-disconnectText.TextColor3 = muted
-disconnectText.TextSize = 13
-disconnectText.Parent = disconnectButton
-
-for _, button in { connectButton, scanButton, applyButton } do
+local hoverable = { connectButton, scanButton, applyButton, disconnectButton }
+for _, button in hoverable do
 	button.MouseEnter:Connect(function()
-		TweenService:Create(button, quick, { BackgroundColor3 = buttonHover }):Play()
+		local base = button:GetAttribute("ToneBackgroundColor3")
+		TweenService:Create(button, quick, { BackgroundColor3 = palette[base .. "Hover"] }):Play()
+		if button == disconnectButton then
+			TweenService:Create(button.Label, quick, { TextColor3 = palette.errText }):Play()
+			TweenService:Create(button.Icon, quick, { ImageColor3 = palette.errText }):Play()
+		end
 	end)
 	button.MouseLeave:Connect(function()
-		TweenService:Create(button, quick, { BackgroundColor3 = buttonColor }):Play()
+		local base = button:GetAttribute("ToneBackgroundColor3")
+		TweenService:Create(button, quick, { BackgroundColor3 = palette[base] }):Play()
 		TweenService:Create(button.UIScale, quick, { Scale = 1 }):Play()
+		if button == disconnectButton then
+			TweenService:Create(button.Label, quick, { TextColor3 = palette.muted }):Play()
+			TweenService:Create(button.Icon, quick, { ImageColor3 = palette.muted }):Play()
+		end
 	end)
 	button.MouseButton1Down:Connect(function()
 		TweenService:Create(button.UIScale, quick, { Scale = 0.97 }):Play()
@@ -500,14 +591,6 @@ for _, button in { connectButton, scanButton, applyButton } do
 		TweenService:Create(button.UIScale, quick, { Scale = 1 }):Play()
 	end)
 end
-disconnectButton.MouseEnter:Connect(function()
-	TweenService:Create(disconnectText, quick, { TextColor3 = red }):Play()
-	TweenService:Create(disconnectIcon, quick, { ImageColor3 = red }):Play()
-end)
-disconnectButton.MouseLeave:Connect(function()
-	TweenService:Create(disconnectText, quick, { TextColor3 = muted }):Play()
-	TweenService:Create(disconnectIcon, quick, { ImageColor3 = muted }):Play()
-end)
 codeBox.Focused:Connect(function()
 	TweenService:Create(codeStroke, quick, { Transparency = 0.7 }):Play()
 end)
@@ -521,15 +604,26 @@ codeBox:GetPropertyChangedSignal("Text"):Connect(function()
 	end
 end)
 
+local function fitWidth()
+	local narrow = root.AbsoluteSize.X < 290
+	header.Size = UDim2.new(1, 0, 0, narrow and 62 or 30)
+	pill.AnchorPoint = narrow and Vector2.new(0, 0) or Vector2.new(1, 0.5)
+	pill.Position = narrow and UDim2.fromOffset(0, 34) or UDim2.fromScale(1, 0.5)
+	pairedText.Visible = root.AbsoluteSize.X >= 260
+end
+root:GetPropertyChangedSignal("AbsoluteSize"):Connect(fitWidth)
+fitWidth()
+
 local pulse = TweenService:Create(
 	ring,
 	TweenInfo.new(1.4, Enum.EasingStyle.Quad, Enum.EasingDirection.Out, -1),
 	{ Size = UDim2.fromOffset(20, 20), BackgroundTransparency = 1 }
 )
 
-local function setPill(label, color, live)
+local function setPill(label, key, live)
 	pillText.Text = label
-	TweenService:Create(dot, quick, { BackgroundColor3 = color }):Play()
+	dot:SetAttribute("ToneBackgroundColor3", key)
+	TweenService:Create(dot, quick, { BackgroundColor3 = palette[key] }):Play()
 	if live then
 		if pulse.PlaybackState ~= Enum.PlaybackState.Playing then
 			ring.Size = UDim2.fromOffset(8, 8)
@@ -542,33 +636,40 @@ local function setPill(label, color, live)
 	end
 end
 
-local function setStatus(message, color)
+local function paintNote()
+	local icon = icons.radio
+	local background = palette.line
+	local shade = 0.96
+	local tint = palette.muted
+	if noteKind == "ok" then
+		icon = icons.check
+		background = palette.green
+		shade = 0.9
+		tint = palette.okText
+	elseif noteKind == "err" then
+		icon = icons.alert
+		background = palette.red
+		shade = 0.88
+		tint = palette.errText
+	end
+	setIcon(noteIcon, icon)
+	noteText.TextColor3 = tint
+	noteIcon.ImageColor3 = tint
+	note.BackgroundColor3 = background
+	return shade
+end
+
+local function setStatus(message, kind)
 	if message == nil or message == "" then
+		noteMessage = nil
 		note.Visible = false
 		return
 	end
-	local icon = icons.radio
-	local background = Color3.fromRGB(255, 255, 255)
-	local shade = 0.95
-	local tint = text
-	if color == green then
-		icon = icons.check
-		background = green
-		shade = 0.9
-		tint = okText
-	elseif color == red then
-		icon = icons.alert
-		background = Color3.fromRGB(236, 59, 71)
-		shade = 0.88
-		tint = red
-	end
-	local fresh = not note.Visible or noteText.Text ~= message
+	local fresh = not note.Visible or noteMessage ~= message
+	noteMessage = message
+	noteKind = kind
 	noteText.Text = message
-	noteText.TextColor3 = tint
-	noteIcon.Image = icon[1]
-	noteIcon.ImageRectOffset = Vector2.new(icon[2], icon[3])
-	noteIcon.ImageColor3 = tint
-	note.BackgroundColor3 = background
+	local shade = paintNote()
 	note.Visible = true
 	if fresh then
 		note.BackgroundTransparency = 1
@@ -581,6 +682,25 @@ local function setStatus(message, color)
 		note.BackgroundTransparency = shade
 	end
 end
+
+local function applyTheme()
+	local background = settings().Studio.Theme:GetColor(Enum.StudioStyleGuideColor.MainBackground)
+	palette = background.R + background.G + background.B > 1.5 and palettes.light or palettes.dark
+	for _, inst in widget:GetDescendants() do
+		for _, prop in toned do
+			local key = inst:GetAttribute("Tone" .. prop)
+			if key then
+				inst[prop] = palette[key]
+			end
+		end
+	end
+	title.Text = 'rbx<font color="' .. palette.accent .. '">yoinker</font>'
+	if note.Visible then
+		note.BackgroundTransparency = paintNote()
+	end
+end
+settings().Studio.ThemeChanged:Connect(applyTheme)
+applyTheme()
 
 local spinners = {}
 
@@ -596,8 +716,7 @@ local function setBusy(button, label)
 		icon:SetAttribute("IdleX", icon:GetAttribute("IdleX") or icon.ImageRectOffset.X)
 		icon:SetAttribute("IdleY", icon:GetAttribute("IdleY") or icon.ImageRectOffset.Y)
 		icon:SetAttribute("IdleImage", icon:GetAttribute("IdleImage") or icon.Image)
-		icon.Image = icons.loader[1]
-		icon.ImageRectOffset = Vector2.new(icons.loader[2], icons.loader[3])
+		setIcon(icon, icons.loader)
 		button.Label.Text = label
 		spinners[button] = TweenService:Create(icon, TweenInfo.new(0.8, Enum.EasingStyle.Linear, Enum.EasingDirection.In, -1), { Rotation = 360 })
 		spinners[button]:Play()
@@ -610,22 +729,22 @@ end
 
 local function showVersion()
 	if appVersion and pluginVersion ~= "dev" and appVersion ~= pluginVersion then
-		versionLabel.Text = "Plugin v" .. pluginVersion .. " is out of date, update it in the app"
-		versionLabel.TextColor3 = red
+		footer.Text = "Plugin v" .. pluginVersion .. " is out of date, update it in the app"
+		tone(footer, { TextColor3 = "errText" })
 	else
-		versionLabel.Text = "plugin v" .. pluginVersion .. (appVersion and ("  ·  app v" .. appVersion) or "")
-		versionLabel.TextColor3 = dim
+		footer.Text = "plugin v" .. pluginVersion .. (appVersion and ("  ·  app v" .. appVersion) or "")
+		tone(footer, { TextColor3 = "dim" })
 	end
 end
 
 local function showView()
 	local paired = token ~= ""
-	connectCard.Visible = not paired
-	placeCard.Visible = paired
-	disconnectButton.Visible = paired
+	pairBox.Visible = not paired
+	pairedRow.Visible = paired
+	scanCard.Visible = paired
 	applyButton.Visible = paired and next(lastMap) ~= nil
 	if not paired then
-		setPill("Not connected", dim, false)
+		setPill("Not connected", "dim", false)
 		progressCard.Visible = false
 		fill.Size = UDim2.fromScale(0, 1)
 	end
@@ -646,26 +765,26 @@ local function call(method, path, body, quiet)
 		Body = body and HttpService:JSONEncode(body) or nil,
 	})
 	if not ok then
-		setPill("App not running", red, false)
+		setPill("App not running", "red", false)
 		if not quiet then
-			setStatus("Can't reach rbxyoinker. Start the app and try again.", red)
+			setStatus("Can't reach rbxyoinker. Start the app and try again.", "err")
 		end
 		return nil
 	end
 	local decodedOk, decoded = pcall(HttpService.JSONDecode, HttpService, res.Body)
 	if res.StatusCode == 401 then
 		forget()
-		setStatus("This Studio was disconnected from rbxyoinker. Get a new code in the app's Migrate tab to connect again.", red)
+		setStatus("This Studio was disconnected from rbxyoinker. Get a new code in the app's Migrate tab to connect again.", "err")
 		return nil
 	end
 	if not decodedOk or not decoded.ok then
 		if not quiet then
-			setStatus(decodedOk and tostring(decoded.error) or "rbxyoinker sent back something odd.", red)
+			setStatus(decodedOk and tostring(decoded.error) or "rbxyoinker sent back something odd.", "err")
 		end
 		return nil
 	end
 	if token ~= "" then
-		setPill("Connected", green, true)
+		setPill("Connected", "green", true)
 	end
 	if typeof(decoded.data) == "table" and decoded.data.version then
 		appVersion = decoded.data.version
@@ -814,7 +933,7 @@ local function applySwaps()
 	if waiting > 0 then
 		setStatus(swapped .. " ids swapped. " .. waiting .. " meshes aren't processed by Roblox yet, click Swap ids again in a minute.")
 	else
-		setStatus(swapped .. " ids swapped. Ctrl+Z undoes it.", green)
+		setStatus(swapped .. " ids swapped. Ctrl+Z undoes it.", "ok")
 	end
 	applyButton.Visible = true
 end
@@ -839,7 +958,8 @@ local function showJob(job)
 	TweenService:Create(tiles.done, smooth, { Value = done }):Play()
 	TweenService:Create(tiles.moved, smooth, { Value = moved }):Play()
 	TweenService:Create(tiles.failed, smooth, { Value = failed }):Play()
-	progressHeading.Label.Text = job.running and ("Moving " .. done .. " of " .. total) or "Progress"
+	progressHeading.Label.Text = job.running and "Moving" or "Progress"
+	progressHeading.Aside.Text = total > 0 and (done .. " of " .. total) or ""
 	if job.running then
 		setStatus("Moving assets, keep Studio open.")
 	elseif seenRun >= 0 and job.run_id ~= seenRun and total > 0 then
@@ -853,7 +973,7 @@ local function showJob(job)
 		if job.mode == "swap" then
 			applySwaps()
 		else
-			setStatus("Done. Copy the mapping from the app.", green)
+			setStatus("Done. Copy the mapping from the app.", "ok")
 		end
 	end
 end
@@ -864,7 +984,7 @@ local function connect()
 	end
 	local code = string.gsub(codeBox.Text, "%D", "")
 	if #code ~= 6 then
-		setStatus("The code is 6 digits.", red)
+		setStatus("The code is 6 digits.", "err")
 		return
 	end
 	busy = true
@@ -879,8 +999,8 @@ local function connect()
 	plugin:SetSetting("rbxyoinkerToken", token)
 	codeBox.Text = ""
 	showView()
-	setPill("Connected", green, true)
-	setStatus("Connected. Scan the place when you're ready.", green)
+	setPill("Connected", "green", true)
+	setStatus("Connected. Scan the place when you're ready.", "ok")
 end
 
 local function scanAndSend()
