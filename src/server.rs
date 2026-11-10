@@ -81,6 +81,10 @@ async fn tab_closed(State(st): State<AppState>) -> Json<Value> {
     ok(Value::Null)
 }
 
+async fn ready(State(st): State<AppState>) -> Json<Value> {
+    ok(json!({ "ready": st.ready.load(Ordering::SeqCst) }))
+}
+
 async fn ping(State(st): State<AppState>) -> Json<Value> {
     *st.last_ping.lock().unwrap_or_else(|e| e.into_inner()) = std::time::Instant::now();
     ok(Value::Null)
@@ -107,6 +111,7 @@ struct AppState {
     studio: crate::studio::Shared,
     required: Arc<Mutex<Option<String>>>,
     key: Arc<String>,
+    ready: Arc<std::sync::atomic::AtomicBool>,
 }
 
 #[derive(Default)]
@@ -174,8 +179,13 @@ pub async fn run(updated: bool) -> std::io::Result<()> {
         studio: crate::studio::load(),
         required: Arc::new(Mutex::new(saved_requirement())),
         key: Arc::new(new_key()),
+        ready: Arc::default(),
     };
-    state.pool.reload(&state.rb).await;
+    let loader = state.clone();
+    tokio::spawn(async move {
+        loader.pool.reload(&loader.rb).await;
+        loader.ready.store(true, Ordering::SeqCst);
+    });
     refresh_plugin();
     let watcher = state.clone();
     tokio::spawn(async move {
@@ -236,6 +246,7 @@ pub async fn run(updated: bool) -> std::io::Result<()> {
         .route("/api/accept", post(accept_terms))
         .route("/api/quit", post(quit_app))
         .route("/api/ping", post(ping))
+        .route("/api/ready", get(ready))
         .route("/api/bye", post(tab_closed))
         .route("/api/quit/check", get(quit_check))
         .route("/api/update/install", post(install_update))
@@ -726,6 +737,7 @@ const UPDATE_GATE_OPEN: &[&str] = &[
     "/api/changelog",
     "/api/changelog/seen",
     "/api/ping",
+    "/api/ready",
     "/api/bye",
     "/api/quit",
     "/api/quit/check",
@@ -1843,6 +1855,7 @@ mod tests {
             studio: Arc::default(),
             required: Arc::new(Mutex::new(required.map(String::from))),
             key: Arc::new("k".repeat(48)),
+            ready: Arc::default(),
         }
     }
 
