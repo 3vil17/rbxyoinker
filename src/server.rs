@@ -115,6 +115,7 @@ struct AppState {
     key: Arc<String>,
     ready: Arc<std::sync::atomic::AtomicBool>,
     boot: Arc<Mutex<(usize, usize)>>,
+    login_open: Arc<std::sync::atomic::AtomicBool>,
 }
 
 #[derive(Default)]
@@ -264,6 +265,7 @@ pub async fn run(updated: bool) -> std::io::Result<()> {
         key: Arc::new(new_key()),
         ready: Arc::default(),
         boot: Arc::default(),
+        login_open: Arc::default(),
     };
     let loader = state.clone();
     tokio::spawn(async move {
@@ -286,6 +288,7 @@ pub async fn run(updated: bool) -> std::io::Result<()> {
         .route("/license", get(license))
         .route("/its-free.mp3", get(its_free))
         .route("/its-free.png", get(its_free_badge))
+        .route("/cookie-editor.svg", get(cookie_editor_logo))
         .route("/api/lookup", get(lookup))
         .route("/api/download", post(download_asset))
         .route("/api/raw", get(raw_asset))
@@ -294,6 +297,7 @@ pub async fn run(updated: bool) -> std::io::Result<()> {
         .route("/api/accounts", get(accounts))
         .route("/api/accounts/refresh", post(refresh_accounts))
         .route("/api/cookies/add", post(cookies_add))
+        .route("/api/login/window", post(login_window))
         .route("/api/cookies/remove", post(cookies_remove))
         .route("/api/cookies/remove-dead", post(cookies_remove_dead))
         .route("/api/bulk", post(bulk_start))
@@ -402,6 +406,10 @@ async fn logo() -> impl IntoResponse {
 
 async fn its_free() -> impl IntoResponse {
     ([(header::CONTENT_TYPE, "audio/mpeg")], &include_bytes!("web/its-free.mp3")[..])
+}
+
+async fn cookie_editor_logo() -> impl IntoResponse {
+    ([(header::CONTENT_TYPE, "image/svg+xml")], include_str!("web/cookie-editor.svg"))
 }
 
 async fn its_free_badge() -> impl IntoResponse {
@@ -737,6 +745,62 @@ async fn cookies_add(State(st): State<AppState>, Json(body): Json<AddCookiesBody
     ok(json!({ "added": added, "count": list.len() }))
 }
 
+async fn login_window(State(st): State<AppState>) -> Json<Value> {
+    use tokio::io::AsyncBufReadExt;
+    if st.login_open.swap(true, Ordering::SeqCst) {
+        return fail("the login window is already open");
+    }
+    let result = run_login_window().await;
+    st.login_open.store(false, Ordering::SeqCst);
+    let cookie = match result {
+        Ok(c) => c,
+        Err(e) => return fail(e),
+    };
+    let mut list = store::load_cookies();
+    let added = !list.contains(&cookie);
+    if added {
+        list.push(cookie.clone());
+        if let Err(e) = store::save_cookies(&list) {
+            return fail(e.to_string());
+        }
+    }
+    st.pool.reload(&st.rb).await;
+    let who = st.rb.cookie_info(&cookie).await.username;
+    return ok(json!({ "added": added, "count": list.len(), "user": who }));
+
+    async fn run_login_window() -> Result<String, String> {
+        let exe = std::env::current_exe().map_err(|e| e.to_string())?;
+        let mut child = tokio::process::Command::new(exe)
+            .arg("--login")
+            .stdin(std::process::Stdio::null())
+            .stdout(std::process::Stdio::piped())
+            .stderr(std::process::Stdio::null())
+            .kill_on_drop(true)
+            .spawn()
+            .map_err(|e| format!("couldn't open the login window ({e})"))?;
+        let stdout = child.stdout.take().ok_or("couldn't talk to the login window")?;
+        let mut lines = tokio::io::BufReader::new(stdout).lines();
+        let mut cookie = None;
+        while let Ok(Some(line)) = lines.next_line().await {
+            if let Some(c) = line.strip_prefix(crate::login::DONE_PREFIX) {
+                cookie = Some(c.trim().to_string());
+            }
+        }
+        let status = child.wait().await.map_err(|e| e.to_string())?;
+        match (cookie, status.code()) {
+            (Some(c), _) => Ok(c),
+            (None, Some(2)) => Err("the login window was closed before you logged in".into()),
+            (None, Some(5)) => Err("the login window timed out, try again".into()),
+            (None, Some(3 | 4)) => Err(if cfg!(windows) {
+                "couldn't open the login window. It needs Microsoft Edge WebView2, which most PCs already have. Paste a cookie instead, or install WebView2 from Microsoft".into()
+            } else {
+                "couldn't open the login window. Paste a cookie instead".into()
+            }),
+            _ => Err("the login window stopped without logging in".into()),
+        }
+    }
+}
+
 #[derive(Deserialize)]
 struct RemoveCookieBody {
     index: usize,
@@ -781,7 +845,18 @@ async fn refresh_accounts(State(st): State<AppState>) -> Json<Value> {
 }
 
 fn version_tuple(v: &str) -> Vec<u32> {
-    v.trim_start_matches('v').split('.').map(|p| p.parse().unwrap_or(0)).collect()
+    let v = v.trim_start_matches('v');
+    let (core, pre) = match v.split_once('-') {
+        Some((core, pre)) => (core, Some(pre)),
+        None => (v, None),
+    };
+    let mut out: Vec<u32> = core.split('.').map(|p| p.parse().unwrap_or(0)).collect();
+    out.resize(3, 0);
+    match pre {
+        None => out.push(u32::MAX),
+        Some(pre) => out.push(pre.rsplit('.').next().and_then(|n| n.parse().ok()).unwrap_or(0)),
+    }
+    out
 }
 
 fn is_important(notes: &str) -> bool {
@@ -2294,6 +2369,15 @@ mod tests {
     use std::io::Read;
 
     #[test]
+    fn betas_sort_before_their_release() {
+        assert!(version_tuple("v0.3.8-beta.1") > version_tuple("v0.3.7"));
+        assert!(version_tuple("v0.3.8-beta.2") > version_tuple("v0.3.8-beta.1"));
+        assert!(version_tuple("v0.3.8") > version_tuple("v0.3.8-beta.2"));
+        assert!(version_tuple("0.3.10") > version_tuple("0.3.9"));
+        assert_eq!(version_tuple("v0.3.7"), version_tuple("0.3.7"));
+    }
+
+    #[test]
     fn eta_needs_progress_and_counts_from_base() {
         let ten_s_ago = std::time::Instant::now().checked_sub(std::time::Duration::from_secs(10));
         assert_eq!(eta(None, 0, 5, 10), None);
@@ -2351,6 +2435,7 @@ mod tests {
             key: Arc::new("k".repeat(48)),
             ready: Arc::default(),
             boot: Arc::default(),
+            login_open: Arc::default(),
         }
     }
 

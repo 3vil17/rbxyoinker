@@ -308,6 +308,28 @@
   #boot .bar.det::after { display: none; }
   #boot p { font-variant-numeric: tabular-nums; }
   .steps { display: flex; flex-direction: column; }
+  .add-acct { display: flex; align-items: center; gap: 8px; margin-top: 10px; flex-wrap: wrap; }
+  .add-acct .or { font-size: 0.72rem; color: rgb(110,110,110); white-space: nowrap; }
+  .add-acct input { flex: 1; min-width: 140px; }
+  .hint .guide-toggle { color: rgb(150,150,150); text-decoration: underline; text-underline-offset: 2px; }
+  .hint .guide-toggle:hover { color: rgb(212,212,212); }
+  a.quiet-link, .card a.quiet-link { font-size: 0.72rem; color: rgb(110,110,110); text-decoration: underline; text-underline-offset: 2px; }
+  a.quiet-link:hover, .card a.quiet-link:hover { color: rgb(170,170,170); }
+  .setup-lead { margin: 0 0 4px; font-size: 0.78rem; color: rgb(150,150,150); }
+  .ck-guide { margin-top: 10px; padding-top: 12px; border-top: 1px solid var(--card-border); }
+  .ck-guide ol { margin: 0; padding-left: 18px; font-size: 0.78rem; color: rgb(190,190,190); line-height: 1.7; }
+  .ck-guide ol code { font-size: 0.74rem; }
+  .ce-head { display: flex; align-items: center; gap: 10px; margin: 0 0 10px; }
+  .ce-head img { width: 30px; height: 30px; }
+  .ce-head b { display: block; font-size: 0.8rem; font-weight: 600; color: rgb(224,224,224); }
+  .ce-head span { font-size: 0.7rem; color: rgb(136,136,136); }
+  .ce-stores { display: flex; flex-wrap: wrap; gap: 6px; margin: 0 0 12px; }
+  .ce-stores .btn { padding: 5px 12px; font-size: 12px; color: rgb(212,212,212); text-decoration: none; width: auto; }
+  .ce-stores .btn:hover { color: #fff; }
+  .step .btn.main { flex: 0 0 auto; width: auto; }
+  #tab-settings .ck-guide .field-row, #tab-settings .ck-guide .warn { display: none; }
+  .ck-guide .warn { margin: 10px 0 0; font-size: 0.72rem; color: rgb(214,140,90); line-height: 1.6; }
+  .ck-guide .field-row { margin-top: 10px; }
   .step { display: flex; align-items: center; gap: 12px; padding: 10px 0; border-bottom: 1px solid var(--card-border); }
   .step:last-child { border-bottom: none; }
   .step .n { width: 24px; height: 24px; border-radius: 50%; flex-shrink: 0; display: flex; align-items: center; justify-content: center; font-size: 0.72rem; font-weight: 600; color: rgb(170,170,170); border: 1px solid rgba(255,255,255,0.14); }
@@ -595,8 +617,19 @@
       <header class="page-head" id="page-head"><h1 id="page-title">Download</h1><p id="page-sub"></p></header>
       <p class="banner" id="update-line" style="display:none"></p>
       <p class="banner" id="health-line" style="display:none"></p>
+      <p class="banner" id="star-line" style="display:none">Enjoying rbxyoinker? A star on GitHub helps other people find it. <a href="https://github.com/3vil17/rbxyoinker" target="_blank" id="star-go">Star on GitHub</a> · <a href="#" id="star-no">Don't show again</a></p>
 
       <section id="tab-download" class="tab" style="display:flex">
+        <div class="card" id="setup-card" style="display:none">
+          <h2 class="sect"><i data-i="key"></i>Set up rbxyoinker</h2>
+          <p class="setup-lead">Most assets need a signed in Roblox account. Use an alt, not your main.</p>
+          <div class="steps">
+            <div class="step"><span class="n">1</span><div class="main"><div class="t">Log in with Roblox</div><div class="s">Opens Roblox's own login page in a separate window. Your password goes to Roblox, rbxyoinker only keeps the login cookie on this PC.</div></div><button class="btn main login-btn" data-i="login">Log in</button></div>
+            <div class="step"><span class="n">2</span><div class="main"><div class="t">Or paste a cookie</div><div class="s">If the login window doesn't work for you. <a href="#" class="guide-toggle">Show me how</a></div></div></div>
+          </div>
+          <div class="ck-guide" style="display:none"></div>
+          <div class="note" id="setup-note"></div>
+        </div>
         <div class="card">
           <div class="searchbox">
             <svg viewBox="0 0 24 24"><path d="M10 13a5 5 0 0 0 7.5.5l3-3a5 5 0 0 0-7-7l-1.7 1.7"/><path d="M14 11a5 5 0 0 0-7.5-.5l-3 3a5 5 0 0 0 7 7l1.7-1.7"/></svg>
@@ -860,11 +893,14 @@
             </div>
           </div>
           <div class="cklist" id="cookie-list"><div class="skrows"><i></i><i></i><i></i></div></div>
-          <div class="field-row" style="margin-top:8px">
-            <input id="cookies" type="password" placeholder="Paste a .ROBLOSECURITY to add" autocomplete="off" />
+          <div class="add-acct">
+            <button class="btn main login-btn" data-i="login">Log in with Roblox</button>
+            <span class="or">or paste a cookie</span>
+            <input id="cookies" type="password" placeholder=".ROBLOSECURITY" autocomplete="off" />
             <button class="btn" id="add-cookies" data-i="plus">Add</button>
           </div>
-          <p class="hint">A cookie is a full login, so don't share it. They stay in <span class="credstore">Windows Credential Manager</span> on this PC. More cookies means faster bulk downloads.</p>
+          <p class="hint">Use alts. Each one is a full login, kept in <span class="credstore">Windows Credential Manager</span> on this PC, and more of them means faster bulk downloads. <a href="#" class="guide-toggle">How do I get a cookie?</a></p>
+          <div class="ck-guide" style="display:none"></div>
           <div class="note" id="cookie-note"></div>
 
           <div class="sep"></div>
@@ -872,7 +908,7 @@
             <span style="font-size:0.8rem; color:rgb(212,212,212)"><span class="dot on"></span>Open Cloud API key saved</span>
             <button class="btn" id="remove-key" data-i="trash">Remove</button>
           </div>
-          <a href="#" id="key-show" style="font-size:0.78rem">Use an Open Cloud API key (not recommended)</a>
+          <a href="#" id="key-show" class="quiet-link">Use an Open Cloud API key instead (not recommended)</a>
           <div id="key-form" style="display:none">
             <div class="note show err" style="margin-top:0"><b>Not recommended.</b> Cookies reach far more assets, and a key keeps working until you delete it on create.roblox.com.</div>
             <div class="field" style="margin-top:12px">
@@ -1234,6 +1270,7 @@ const ICONS = {
   play: '<polygon points="6 3 20 12 6 21 6 3"/>',
   copy: '<rect width="14" height="14" x="8" y="8" rx="2" ry="2"/><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"/>',
   plus: '<path d="M5 12h14"/><path d="M12 5v14"/>',
+  login: '<path d="m10 17 5-5-5-5"/><path d="M15 12H3"/><path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4"/>',
   x: '<path d="M18 6 6 18"/><path d="m6 6 12 12"/>',
   crosshair: '<circle cx="12" cy="12" r="10"/><line x1="22" x2="18" y1="12" y2="12"/><line x1="6" x2="2" y1="12" y2="12"/><line x1="12" x2="12" y1="6" y2="2"/><line x1="12" x2="12" y1="22" y2="18"/>',
   plug: '<path d="M12 22v-5"/><path d="M9 8V2"/><path d="M15 8V2"/><path d="M18 8v5a4 4 0 0 1-4 4h-4a4 4 0 0 1-4-4V8Z"/>',
@@ -1470,6 +1507,7 @@ async function doDownload() {
   const rb = $("#reveal-btn"); if (rb) rb.onclick = () => post("/api/reveal", { path: d.path });
   const ib = $("#insert-btn"); if (ib) ib.onclick = () => insertIntoStudio($("#dl-note"), d.path);
   loadRecent();
+  countDownloads(1);
 }
 $("#play-btn").onclick = () => {
   if (!current) return;
@@ -2479,6 +2517,7 @@ async function pollJobs() {
   const rows = [];
   const b = res.data.bulk, m = res.data.migrate;
   const pb = lastJobs.bulk, pm = lastJobs.migrate;
+  if (pb && !b) countDownloads(Math.max(0, pb.total - (pb.failed || 0)));
   if (pb && !b) jobDone("Bulk finished", pb.total + " assets" + (pb.failed ? ", " + pb.failed + " failed" : ""));
   if (pm && !m) jobDone(pm.checking ? "Check finished" : "Migrate finished", (pm.place || "Studio") + (pm.failed ? ", " + pm.failed + " failed" : ""));
   lastJobs = { bulk: b, migrate: m };
@@ -2520,6 +2559,94 @@ window.addEventListener("pagehide", () => {
 });
 const itsFree = new Audio("/its-free.mp3");
 $("#its-free").onclick = () => { itsFree.currentTime = 0; itsFree.play().catch(() => {}); };
+const CE_STORES = [
+  ["Chrome", "https://chromewebstore.google.com/detail/cookie-editor/hlkenndednhfkekhgcdicdfddnkalmdm"],
+  ["Edge", "https://microsoftedge.microsoft.com/addons/detail/cookieeditor/neaplmfkghagebokkhpjpoebhdledlfi"],
+  ["Firefox", "https://addons.mozilla.org/addon/cookie-editor"],
+  ["Safari", "https://apps.apple.com/app/apple-store/id6446215341"],
+  ["Opera", "https://addons.opera.com/en/extensions/details/cookie-editor-2/"],
+];
+function myBrowser() {
+  const ua = navigator.userAgent;
+  if (navigator.brave) return "Brave";
+  if (/Edg\//.test(ua)) return "Edge";
+  if (/OPR\//.test(ua)) return "Opera";
+  if (/Firefox\//.test(ua)) return "Firefox";
+  if (/Chrome\//.test(ua)) return "Chrome";
+  if (/Safari\//.test(ua)) return "Safari";
+  return "";
+}
+function cookieGuide() {
+  const mine = myBrowser(), store = mine === "Brave" ? "Chrome" : mine;
+  const btns = CE_STORES.map(([name, url]) => '<a class="btn' + (name === store ? " main" : "") + '" href="' + url + '" target="_blank">' + name + (name === "Chrome" && mine === "Brave" ? " (works in Brave)" : "") + "</a>").join("");
+  return '<div class="ce-head"><img src="/cookie-editor.svg" alt="" /><div><b>Cookie-Editor</b><span>Free, open source browser extension by Moustachauve. Get it from your browser\'s official store:</span></div></div>' +
+    '<div class="ce-stores">' + btns + "</div>" +
+    "<ol>" +
+    "<li>Open a <b>private / incognito window</b> and log in to your alt on roblox.com.</li>" +
+    "<li>Click Cookie-Editor in the toolbar, find <code>.ROBLOSECURITY</code> and copy its value. It starts with <code>_|WARNING</code>.</li>" +
+    "<li>Paste it into rbxyoinker, then just <b>close</b> the private window. Don't press Log out, that kills the cookie.</li>" +
+    "</ol>" +
+    '<div class="field-row"><input class="guide-paste" type="password" placeholder="Paste the .ROBLOSECURITY value" autocomplete="off" /><button class="btn guide-add" data-i="plus">Add</button></div>' +
+    '<p class="warn">A cookie is a full login to that account. Only paste it here, never into a website, Discord or anyone\'s DMs. rbxyoinker keeps it on this PC and only sends it to Roblox.</p>';
+}
+function noteFor(el) { return el.closest("#setup-card") ? $("#setup-note") : $("#cookie-note"); }
+document.querySelectorAll(".guide-toggle").forEach((a) => {
+  a.onclick = (e) => {
+    e.preventDefault();
+    const g = a.closest(".card").querySelector(".ck-guide");
+    const open = g.style.display === "none";
+    if (open && !g.innerHTML) {
+      g.innerHTML = cookieGuide();
+      g.querySelectorAll("[data-i]").forEach((b) => { b.insertAdjacentHTML("afterbegin", svg(b.dataset.i)); });
+      const box = g.querySelector(".guide-paste");
+      g.querySelector(".guide-add").onclick = () => addCookie(box.value.trim(), noteFor(g), () => { box.value = ""; });
+    }
+    g.style.display = open ? "" : "none";
+  };
+});
+async function addCookie(c, note, done) {
+  if (!c) { showNote(note, "info", "Paste a cookie first."); return; }
+  if (!c.startsWith("_|WARNING")) { showNote(note, "err", "That doesn't look like a full cookie. Copy the whole <code>.ROBLOSECURITY</code> value, it starts with <code>_|WARNING</code>."); return; }
+  showNote(note, "info", "Adding and checking…");
+  const res = await post("/api/cookies/add", { cookies: c });
+  if (!res.ok) { showNote(note, "err", esc(res.error)); return; }
+  if (done) done();
+  showNote(note, res.data.added ? "ok" : "info", res.data.added ? "Cookie added." : "That one was already saved.");
+  afterCredsChange();
+}
+function afterCredsChange() { loadCookies(); loadSetup(); }
+document.querySelectorAll(".login-btn").forEach((b) => {
+  b.onclick = async () => {
+    const note = noteFor(b), label = b.innerHTML;
+    document.querySelectorAll(".login-btn").forEach((x) => { x.disabled = true; });
+    b.innerHTML = '<span class="spinner"></span> Waiting for you to log in…';
+    showNote(note, "info", "A Roblox login window opened. Log in to your alt there, it closes by itself when you're in.");
+    const res = await post("/api/login/window", {});
+    document.querySelectorAll(".login-btn").forEach((x) => { x.disabled = false; });
+    b.innerHTML = label;
+    if (!res.ok) { showNote(note, "err", esc(res.error)); return; }
+    const who = res.data.user ? " as <b>@" + esc(res.data.user) + "</b>" : "";
+    showNote(note, "ok", res.data.added ? "Logged in" + who + ". You're ready to download." : "That account was already saved" + who + ".");
+    afterCredsChange();
+  };
+});
+async function loadSetup() {
+  const res = await api("/api/settings");
+  if (!res.ok) return;
+  const need = !res.data.cookie_count && !res.data.has_key;
+  const card = $("#setup-card");
+  if (need) card.style.display = "";
+  else if (card.style.display !== "none" && !$("#setup-note").classList.contains("show")) card.style.display = "none";
+}
+loadSetup();
+function countDownloads(n) {
+  let seen = 0, off = false;
+  try { off = localStorage.getItem("ryk_star") === "off"; seen = parseInt(localStorage.getItem("ryk_dls") || "0", 10) + n; localStorage.setItem("ryk_dls", String(seen)); } catch (e) { return; }
+  if (!off && seen >= 10) $("#star-line").style.display = "";
+}
+function starOff() { $("#star-line").style.display = "none"; try { localStorage.setItem("ryk_star", "off"); } catch (e) {} }
+$("#star-go").addEventListener("click", starOff);
+$("#star-no").onclick = (e) => { e.preventDefault(); starOff(); };
 $("#report-link").onclick = (e) => { e.preventDefault(); window.open(reportUrl(null, { where: "Sidebar" }), "_blank"); };
 $("#quit-link").onclick = async (e) => {
   e.preventDefault();
