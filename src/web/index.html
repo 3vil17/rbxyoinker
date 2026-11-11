@@ -308,6 +308,13 @@
   #boot .bar.det::after { display: none; }
   #boot p { font-variant-numeric: tabular-nums; }
   .steps { display: flex; flex-direction: column; }
+  .add-acct { display: flex; align-items: center; gap: 8px; margin-top: 10px; flex-wrap: wrap; }
+  .add-acct .or { font-size: 0.72rem; color: rgb(110,110,110); white-space: nowrap; }
+  .add-acct input { flex: 1; min-width: 140px; }
+  .hint .guide-toggle { color: rgb(150,150,150); text-decoration: underline; text-underline-offset: 2px; }
+  .hint .guide-toggle:hover { color: rgb(212,212,212); }
+  a.quiet-link, .card a.quiet-link { font-size: 0.72rem; color: rgb(110,110,110); text-decoration: underline; text-underline-offset: 2px; }
+  a.quiet-link:hover, .card a.quiet-link:hover { color: rgb(170,170,170); }
   .setup-lead { margin: 0 0 4px; font-size: 0.78rem; color: rgb(150,150,150); }
   .ck-guide { margin-top: 10px; padding-top: 12px; border-top: 1px solid var(--card-border); }
   .ck-guide ol { margin: 0; padding-left: 18px; font-size: 0.78rem; color: rgb(190,190,190); line-height: 1.7; }
@@ -886,14 +893,14 @@
             </div>
           </div>
           <div class="cklist" id="cookie-list"><div class="skrows"><i></i><i></i><i></i></div></div>
-          <div class="field-row" style="margin-top:8px">
-            <input id="cookies" type="password" placeholder="Paste a .ROBLOSECURITY to add" autocomplete="off" />
+          <div class="add-acct">
+            <button class="btn main login-btn" data-i="login">Log in with Roblox</button>
+            <span class="or">or paste a cookie</span>
+            <input id="cookies" type="password" placeholder=".ROBLOSECURITY" autocomplete="off" />
             <button class="btn" id="add-cookies" data-i="plus">Add</button>
-            <button class="btn login-btn" data-i="login">Log in with Roblox</button>
           </div>
-          <a href="#" class="guide-toggle" style="font-size:0.78rem; display:inline-block; margin-top:8px">How do I get a cookie?</a>
+          <p class="hint">Use alts. Each one is a full login, kept in <span class="credstore">Windows Credential Manager</span> on this PC, and more of them means faster bulk downloads. <a href="#" class="guide-toggle">How do I get a cookie?</a></p>
           <div class="ck-guide" style="display:none"></div>
-          <p class="hint">A cookie is a full login, so don't share it. They stay in <span class="credstore">Windows Credential Manager</span> on this PC. More cookies means faster bulk downloads.</p>
           <div class="note" id="cookie-note"></div>
 
           <div class="sep"></div>
@@ -901,7 +908,7 @@
             <span style="font-size:0.8rem; color:rgb(212,212,212)"><span class="dot on"></span>Open Cloud API key saved</span>
             <button class="btn" id="remove-key" data-i="trash">Remove</button>
           </div>
-          <a href="#" id="key-show" style="font-size:0.78rem">Use an Open Cloud API key (not recommended)</a>
+          <a href="#" id="key-show" class="quiet-link">Use an Open Cloud API key instead (not recommended)</a>
           <div id="key-form" style="display:none">
             <div class="note show err" style="margin-top:0"><b>Not recommended.</b> Cookies reach far more assets, and a key keeps working until you delete it on create.roblox.com.</div>
             <div class="field" style="margin-top:12px">
