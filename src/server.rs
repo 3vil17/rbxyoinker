@@ -318,6 +318,7 @@ pub async fn run(updated: bool) -> std::io::Result<()> {
         .route("/api/studio/file", get(studio_file))
         .route("/api/studio/bulk", post(studio_bulk))
         .route("/api/studio/anims", post(studio_anims))
+        .route("/api/studio/export", post(studio_export))
         .route("/api/studio/inbox", get(studio_inbox))
         .route("/api/migrate/job", get(migrate_job))
         .route("/api/migrate/targets", get(migrate_targets))
@@ -796,6 +797,7 @@ const KEY_OPEN: &[&str] = &[
     "/api/studio/file",
     "/api/studio/bulk",
     "/api/studio/anims",
+    "/api/studio/export",
 ];
 
 fn new_key() -> String {
@@ -1630,6 +1632,75 @@ async fn studio_anims(
     let count = ids.len();
     tokio::spawn(yoink_anims(st.clone(), ids, body.place_id.filter(|p| *p > 0)));
     ok(json!({ "count": count })).into_response()
+}
+
+#[derive(Deserialize)]
+struct StudioExport {
+    name: String,
+    rbxm: String,
+    #[serde(default)]
+    place_id: Option<i64>,
+}
+
+async fn studio_export(
+    State(st): State<AppState>,
+    headers: axum::http::HeaderMap,
+    Json(body): Json<StudioExport>,
+) -> axum::response::Response {
+    if !crate::studio::lock(&st.studio).check(studio_token(&headers).as_deref()) {
+        return unpaired();
+    }
+    use base64::Engine;
+    let Ok(bytes) = base64::engine::general_purpose::STANDARD.decode(body.rbxm.trim()) else {
+        return fail("the plugin sent a broken rig, try again").into_response();
+    };
+    let place = body.place_id.filter(|p| *p > 0);
+    let ids = crate::anim::mesh_ids(&bytes);
+    let mut set = tokio::task::JoinSet::new();
+    for id in ids.iter().copied() {
+        let st = st.clone();
+        set.spawn(async move {
+            let api_key = store::get_secret("api_key");
+            for attempt in 0..3u64 {
+                if let Ok(b) = download::resolve_bytes(&st.rb, api_key.as_deref(), &st.pool, id, place).await {
+                    return (id, Some(b));
+                }
+                tokio::time::sleep(std::time::Duration::from_millis(800 * (attempt + 1))).await;
+            }
+            (id, None)
+        });
+    }
+    let mut meshes = std::collections::HashMap::new();
+    while let Some(Ok((id, got))) = set.join_next().await {
+        if let Some(b) = got {
+            meshes.insert(id, b);
+        }
+    }
+    let export = match tokio::task::spawn_blocking(move || crate::anim::build(&bytes, &meshes).map(|e| (e, meshes.len()))).await {
+        Ok(Ok(x)) => x,
+        Ok(Err(e)) => return fail(e).into_response(),
+        Err(_) => return fail("the export crashed").into_response(),
+    };
+    let (export, got) = export;
+    let dir = std::path::PathBuf::from(store::load_settings().save_dir).join("Blender");
+    if let Err(e) = std::fs::create_dir_all(&dir) {
+        return fail(e.to_string()).into_response();
+    }
+    let name = download::sanitize(if body.name.trim().is_empty() { "Rig" } else { body.name.trim() });
+    let path = dir.join(format!("{name}.glb"));
+    if let Err(e) = std::fs::write(&path, &export.glb) {
+        return fail(e.to_string()).into_response();
+    }
+    let shown = path.to_string_lossy().to_string();
+    let _ = reveal(Json(RevealBody { path: shown.clone() })).await;
+    ok(json!({
+        "path": shown,
+        "bones": export.bones,
+        "animations": export.clips,
+        "meshes": got,
+        "mesh_total": ids.len(),
+    }))
+    .into_response()
 }
 
 async fn yoink_anims(st: AppState, ids: Vec<i64>, place: Option<i64>) {

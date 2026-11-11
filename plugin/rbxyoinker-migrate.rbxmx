@@ -383,7 +383,7 @@ pairBox.Parent = connectCard
 cardLayout:Clone().Parent = pairBox
 
 local connectHint = hintTemplate:Clone()
-connectHint.Text = "In the app, open the Migrate tab and click Get a code, then type it in here. You only do this once."
+connectHint.Text = "In the app, click Studio in the sidebar and get a code, then type it in here. You only do this once."
 connectHint.LayoutOrder = 1
 connectHint.Parent = pairBox
 
@@ -499,7 +499,7 @@ local lastScan = hintTemplate:Clone()
 lastScan.TextSize = 12
 lastScan.Text = ""
 lastScan.Visible = false
-lastScan.LayoutOrder = 8
+lastScan.LayoutOrder = 9
 tone(lastScan, { TextColor3 = "dim" })
 lastScan.Parent = scanCard
 
@@ -516,6 +516,13 @@ animButton.Label.Text = "Yoink place animations to rig"
 animButton.LayoutOrder = 7
 animButton.Visible = false
 animButton.Parent = scanCard
+
+local exportButton = buttonTemplate:Clone()
+setIcon(exportButton.Icon, icons.link)
+exportButton.Label.Text = "Export rig to Blender"
+exportButton.LayoutOrder = 8
+exportButton.Visible = false
+exportButton.Parent = scanCard
 
 local progressCard = cardTemplate:Clone()
 progressCard.LayoutOrder = 4
@@ -635,7 +642,7 @@ footer.LayoutOrder = 6
 tone(footer, { TextColor3 = "dim" })
 footer.Parent = root
 
-local hoverable = { connectButton, scanButton, bulkButton, animButton, applyButton, leftButton, disconnectButton }
+local hoverable = { connectButton, scanButton, bulkButton, animButton, exportButton, applyButton, leftButton, disconnectButton }
 for _, button in hoverable do
 	button.MouseEnter:Connect(function()
 		local base = button:GetAttribute("ToneBackgroundColor3")
@@ -843,6 +850,7 @@ local function showScope()
 	scopeHint.Visible = not has
 	bulkButton.Visible = has
 	animButton.Visible = animRig ~= nil or findRig() ~= nil
+	exportButton.Visible = findRig() ~= nil
 	if not spinners[scanButton] then
 		scanButton.Label.Text = scope == "place" and "Scan place" or "Scan selection"
 	end
@@ -895,7 +903,7 @@ local function call(method, path, body, quiet)
 	local decodedOk, decoded = pcall(HttpService.JSONDecode, HttpService, res.Body)
 	if res.StatusCode == 401 then
 		forget()
-		setStatus("This Studio was disconnected from rbxyoinker. Get a new code in the app's Migrate tab to connect again.", "err")
+		setStatus("This Studio was disconnected from rbxyoinker. Click Studio in the app's sidebar for a new code.", "err")
 		return nil
 	end
 	if not decodedOk or not decoded.ok then
@@ -1342,6 +1350,103 @@ bulkButton.MouseButton1Click:Connect(function()
 	busy = false
 	if sent then
 		setStatus("Sent " .. sent.count .. " ids to rbxyoinker's Bulk tab.", "ok")
+	end
+end)
+
+local base64Chars = {}
+for i = 1, 64 do
+	base64Chars[i - 1] = string.sub("ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/", i, i)
+end
+
+local function toBase64(data)
+	local len = buffer.len(data)
+	local out = table.create(math.ceil(len / 3))
+	for i = 0, len - 1, 3 do
+		local a = buffer.readu8(data, i)
+		local b = if i + 1 < len then buffer.readu8(data, i + 1) else 0
+		local c = if i + 2 < len then buffer.readu8(data, i + 2) else 0
+		local n = bit32.bor(bit32.lshift(a, 16), bit32.lshift(b, 8), c)
+		table.insert(
+			out,
+			base64Chars[bit32.extract(n, 18, 6)]
+				.. base64Chars[bit32.extract(n, 12, 6)]
+				.. (if i + 1 < len then base64Chars[bit32.extract(n, 6, 6)] else "=")
+				.. (if i + 2 < len then base64Chars[bit32.extract(n, 0, 6)] else "=")
+		)
+	end
+	return table.concat(out)
+end
+
+local function extraAnimations(rig)
+	local found = {}
+	local sources = {}
+	local saves = rig:FindFirstChild("AnimSaves")
+	if saves and saves:IsA("ObjectValue") and saves.Value and saves.Value ~= saves then
+		table.insert(sources, saves.Value)
+	end
+	local editorSaves = ServerStorage:FindFirstChild("RBX_ANIMSAVES")
+	local forRig = editorSaves and editorSaves:FindFirstChild(rig.Name)
+	if forRig then
+		table.insert(sources, forRig)
+	end
+	for _, source in sources do
+		for _, child in source:GetChildren() do
+			if child:IsA("KeyframeSequence") then
+				table.insert(found, child)
+			end
+		end
+	end
+	return found
+end
+
+exportButton.MouseButton1Click:Connect(function()
+	local rig = findRig()
+	if busy or not rig then
+		return
+	end
+	busy = true
+	setBusy(exportButton, "Packing ...")
+	local wasArchivable = rig.Archivable
+	rig.Archivable = true
+	local copy = rig:Clone()
+	rig.Archivable = wasArchivable
+	local sent = nil
+	if not copy then
+		setStatus("Couldn't copy " .. rig.Name .. ". Something in it can't be copied.", "err")
+	else
+		local extra = Instance.new("Folder")
+		extra.Name = "rbxyoinkerExtra"
+		for _, sequence in extraAnimations(rig) do
+			local clone = sequence:Clone()
+			if clone then
+				clone.Parent = extra
+			end
+		end
+		extra.Parent = copy
+		local packed, data = pcall(SerializationService.SerializeInstancesAsync, SerializationService, { copy })
+		copy:Destroy()
+		if not packed then
+			setStatus("Couldn't pack " .. rig.Name .. " for rbxyoinker.", "err")
+		else
+			setBusy(exportButton, "Building the .glb ...")
+			sent = call("POST", "/api/studio/export", { name = rig.Name, rbxm = toBase64(data), place_id = game.PlaceId })
+		end
+	end
+	setBusy(exportButton, nil)
+	busy = false
+	if sent then
+		local count = #sent.animations
+		local missing = sent.mesh_total - sent.meshes
+		setStatus(
+			"Saved "
+				.. rig.Name
+				.. ".glb with "
+				.. count
+				.. (count == 1 and " animation" or " animations")
+				.. (missing > 0 and (", " .. missing .. " meshes couldn't be downloaded and are boxes") or "")
+				.. ". It's open in File Explorer.",
+			"ok"
+		)
 	end
 end)
 
