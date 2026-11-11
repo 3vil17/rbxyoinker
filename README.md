@@ -84,7 +84,7 @@ Turn either on in **Settings**, or use the **Convert** tab for files you already
 
 Moves the assets a place uses to your account or a group you manage, then swaps the new ids into the place. Useful when a game moves to a new group.
 
-1. In the Migrate tab, click **Install plugin** and restart Studio.
+1. Click **Studio** at the bottom of the sidebar, then **Install plugin**, and restart Studio.
 2. Open your place, click **Migrate** in the Plugins tab and pair it with the code from the app.
 3. Click **Scan place**. The assets show up in the app.
 4. Pick where they go. **Check first** shows what can be reached and how much of your audio limit is left, without uploading anything.
@@ -97,6 +97,17 @@ Sounds, images, meshes and animations can be moved. **Save report** lists what m
 Bulk and Migrate skip Roblox's own default assets, like the sky, the baseplate grid and built-in sounds and animations, and show how many were skipped. You can turn this off in Settings.
 
 ![The Migrate tab](docs/migrate.png)
+
+## Studio plugin
+
+Once the plugin is paired, the app and Studio work together outside of Migrate too:
+
+- **Insert into Studio.** The box button on a model in Recent or History drops it in front of the camera.
+- **Animations onto a rig.** Select a rig, then press the box button on an animation. It goes into the rig's AnimSaves, where Eclipse Animator and Roblox's Animation Editor pick it up. **Yoink place animations to rig** in the plugin does this for every animation the place uses.
+- **Download selection.** Sends the asset ids of whatever you have selected in Studio to Bulk.
+- **Export rig to Blender.** Saves the selected rig and its animations as an animated `.glb` in the Blender folder of your downloads, for viewing or for other 3D tools.
+
+Animating in Blender? Put the yoinked animation on your rig, then send it over with [RBXMonkey](https://github.com/Cautioned/Blender-Animations-Plugin).
 
 ## How it gets private assets
 
