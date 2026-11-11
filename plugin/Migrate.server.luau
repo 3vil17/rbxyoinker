@@ -6,6 +6,7 @@ local AssetService = game:GetService("AssetService")
 local RunService = game:GetService("RunService")
 local TweenService = game:GetService("TweenService")
 local Selection = game:GetService("Selection")
+local ServerStorage = game:GetService("ServerStorage")
 local SerializationService = game:GetService("SerializationService")
 
 if not RunService:IsEdit() then
@@ -117,6 +118,7 @@ local noteMessage = nil
 local noteKind = nil
 local scope = "place"
 local leftovers = {}
+local animRig = nil
 
 local function tone(inst, map)
 	for prop, key in map do
@@ -497,7 +499,7 @@ local lastScan = hintTemplate:Clone()
 lastScan.TextSize = 12
 lastScan.Text = ""
 lastScan.Visible = false
-lastScan.LayoutOrder = 7
+lastScan.LayoutOrder = 8
 tone(lastScan, { TextColor3 = "dim" })
 lastScan.Parent = scanCard
 
@@ -507,6 +509,13 @@ bulkButton.Label.Text = "Download selection"
 bulkButton.LayoutOrder = 6
 bulkButton.Visible = false
 bulkButton.Parent = scanCard
+
+local animButton = buttonTemplate:Clone()
+setIcon(animButton.Icon, icons.move)
+animButton.Label.Text = "Yoink place animations to rig"
+animButton.LayoutOrder = 7
+animButton.Visible = false
+animButton.Parent = scanCard
 
 local progressCard = cardTemplate:Clone()
 progressCard.LayoutOrder = 4
@@ -626,7 +635,7 @@ footer.LayoutOrder = 6
 tone(footer, { TextColor3 = "dim" })
 footer.Parent = root
 
-local hoverable = { connectButton, scanButton, bulkButton, applyButton, leftButton, disconnectButton }
+local hoverable = { connectButton, scanButton, bulkButton, animButton, applyButton, leftButton, disconnectButton }
 for _, button in hoverable do
 	button.MouseEnter:Connect(function()
 		local base = button:GetAttribute("ToneBackgroundColor3")
@@ -788,6 +797,41 @@ local function setBusy(button, label)
 	end
 end
 
+local function findRig()
+	for _, picked in Selection:Get() do
+		local node = picked
+		while node and node ~= game do
+			if node:IsA("Model") and (node:FindFirstChildOfClass("Humanoid") or node:FindFirstChildOfClass("AnimationController")) then
+				return node
+			end
+			node = node.Parent
+		end
+	end
+	return nil
+end
+
+local function animSavesOf(rig)
+	local saves = rig:FindFirstChild("AnimSaves")
+	if not saves then
+		saves = Instance.new("ObjectValue")
+		saves.Name = "AnimSaves"
+		saves.Parent = rig
+	end
+	return saves
+end
+
+local function parkedAnimations()
+	local folder = ServerStorage:FindFirstChild("rbxyoinker animations")
+	if not folder then
+		folder = Instance.new("Folder")
+		folder.Name = "rbxyoinker animations"
+		folder.Parent = ServerStorage
+	end
+	return folder
+end
+
+local genericNames = { KeyframeSequence = true, CurveAnimation = true, Animation = true, AnimSaves = true }
+
 local function showScope()
 	local has = #Selection:Get() > 0
 	if scope == "selection" and not has then
@@ -798,6 +842,7 @@ local function showScope()
 	tone(segButtons.selection, { TextColor3 = scope == "selection" and "bright" or (has and "muted" or "placeholder") })
 	scopeHint.Visible = not has
 	bulkButton.Visible = has
+	animButton.Visible = animRig ~= nil or findRig() ~= nil
 	if not spinners[scanButton] then
 		scanButton.Label.Text = scope == "place" and "Scan place" or "Scan selection"
 	end
@@ -1026,9 +1071,11 @@ end
 
 local function insertModels(list)
 	local inserted = {}
+	local animations = {}
 	local failed = 0
 	local camera = workspace.CurrentCamera
 	local spot = camera and (camera.CFrame * CFrame.new(0, 0, -20)).Position or Vector3.zero
+	local rig = if animRig and animRig:IsDescendantOf(game) then animRig else findRig()
 	local recording = ChangeHistoryService:TryBeginRecording("rbxyoinker insert")
 	for _, ticket in list do
 		local ok, res = pcall(HttpService.RequestAsync, HttpService, {
@@ -1043,11 +1090,19 @@ local function insertModels(list)
 		end
 		if typeof(items) == "table" and #items > 0 then
 			for _, item in items do
-				item.Parent = workspace
-				if item:IsA("PVInstance") then
-					pcall(item.PivotTo, item, CFrame.new(spot))
+				if item:IsA("KeyframeSequence") or item:IsA("CurveAnimation") then
+					if genericNames[item.Name] then
+						item.Name = tostring(ticket.name)
+					end
+					item.Parent = if rig then animSavesOf(rig) else parkedAnimations()
+					table.insert(animations, item)
+				else
+					item.Parent = workspace
+					if item:IsA("PVInstance") then
+						pcall(item.PivotTo, item, CFrame.new(spot))
+					end
+					table.insert(inserted, item)
 				end
-				table.insert(inserted, item)
 			end
 		else
 			failed += 1
@@ -1060,12 +1115,41 @@ local function insertModels(list)
 		Selection:Set(inserted)
 	end
 	if failed > 0 then
-		setStatus("Couldn't load " .. failed .. (failed == 1 and " model" or " models") .. " from rbxyoinker.", "err")
+		setStatus("Couldn't load " .. failed .. (failed == 1 and " file" or " files") .. " from rbxyoinker.", "err")
+	elseif #animations > 0 and #inserted == 0 then
+		local what = #animations == 1 and animations[1].Name or (#animations .. " animations")
+		if rig then
+			setStatus("Added " .. what .. " to " .. rig.Name .. "'s AnimSaves. Open the rig in your animator. Ctrl+Z undoes it.", "ok")
+		else
+			setStatus("No rig selected, so " .. what .. " went to ServerStorage. Select a rig and insert it again to put it in AnimSaves.")
+		end
 	elseif #list == 1 then
 		setStatus("Inserted " .. tostring(list[1].name) .. ". Ctrl+Z undoes it.", "ok")
 	else
 		setStatus("Inserted " .. #list .. " models. Ctrl+Z undoes it.", "ok")
 	end
+end
+
+local function showAnims(state)
+	if state.running then
+		local label = "Yoinking " .. state.done .. " of " .. state.total .. " ..."
+		if spinners[animButton] then
+			animButton.Label.Text = label
+		else
+			setBusy(animButton, label)
+		end
+		return
+	end
+	setBusy(animButton, nil)
+	local got = state.total - state.failed
+	local where = if animRig then animRig.Name .. "'s AnimSaves" else "the rig"
+	if state.failed > 0 then
+		setStatus("Added " .. got .. " of " .. state.total .. " animations to " .. where .. ". " .. state.failed .. " couldn't be downloaded.", got > 0 and "ok" or "err")
+	else
+		setStatus("Added " .. got .. (got == 1 and " animation" or " animations") .. " to " .. where .. ".", "ok")
+	end
+	animRig = nil
+	showScope()
 end
 
 local function applySwaps()
@@ -1261,6 +1345,40 @@ bulkButton.MouseButton1Click:Connect(function()
 	end
 end)
 
+animButton.MouseButton1Click:Connect(function()
+	local rig = findRig()
+	if busy or animRig or not rig then
+		return
+	end
+	busy = true
+	setBusy(animButton, "Reading ...")
+	local config = call("GET", "/api/studio/scan")
+	local found = config and scan(config, nil)
+	local ids = {}
+	local seen = {}
+	if found then
+		for _, ref in found.refs do
+			if ref.instance:IsA("Animation") and not seen[ref.id] then
+				seen[ref.id] = true
+				table.insert(ids, ref.id)
+			end
+		end
+	end
+	local sent = nil
+	if found and #ids == 0 then
+		setStatus("No animations found in the parts of the place you picked to scan.")
+	elseif found then
+		sent = call("POST", "/api/studio/anims", { ids = ids, place_id = game.PlaceId })
+	end
+	busy = false
+	setBusy(animButton, nil)
+	if sent then
+		animRig = rig
+		showAnims({ running = true, done = 0, total = sent.count, failed = 0 })
+		setStatus("Yoinking " .. sent.count .. (sent.count == 1 and " animation" or " animations") .. " onto " .. rig.Name .. ". You can keep working.")
+	end
+end)
+
 leftButton.MouseButton1Click:Connect(function()
 	if busy or #leftovers == 0 then
 		return
@@ -1319,6 +1437,9 @@ task.spawn(function()
 					if job.insert then
 						insertModels(job.insert)
 					end
+					if job.anims then
+						showAnims(job.anims)
+					end
 				end
 				task.wait(2)
 			else
@@ -1328,6 +1449,9 @@ task.spawn(function()
 				end
 				if pong and pong.insert then
 					insertModels(pong.insert)
+				end
+				if pong and pong.anims then
+					showAnims(pong.anims)
 				end
 				task.wait(5)
 			end

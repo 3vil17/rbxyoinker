@@ -12,6 +12,14 @@ struct Saved {
     tokens: Vec<String>,
 }
 
+#[derive(Default, Clone, Serialize)]
+pub struct AnimRun {
+    pub running: bool,
+    pub total: usize,
+    pub done: usize,
+    pub failed: usize,
+}
+
 #[derive(Default)]
 pub struct Pairing {
     code: Option<(String, Instant)>,
@@ -24,6 +32,7 @@ pub struct Pairing {
     pub inserts: Vec<(u64, String)>,
     pub files: Vec<(u64, std::path::PathBuf)>,
     pub next_file: u64,
+    pub anims: AnimRun,
 }
 
 pub type Shared = Arc<Mutex<Pairing>>;
@@ -51,6 +60,27 @@ pub fn load() -> Shared {
 }
 
 impl Pairing {
+    pub fn queue_file(&mut self, file: std::path::PathBuf, name: String) {
+        self.next_file += 1;
+        let n = self.next_file;
+        self.files.push((n, file));
+        if self.files.len() > 300 {
+            self.files.remove(0);
+        }
+        self.inserts.push((n, name));
+    }
+
+    pub fn take_anims(&mut self) -> Option<AnimRun> {
+        if self.anims.total == 0 {
+            return None;
+        }
+        let state = self.anims.clone();
+        if !state.running {
+            self.anims = AnimRun::default();
+        }
+        Some(state)
+    }
+
     fn save(&self) {
         let saved = Saved { tokens: self.tokens.clone() };
         if let Ok(text) = serde_json::to_string(&saved) {
