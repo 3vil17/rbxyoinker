@@ -481,7 +481,7 @@ async fn lookup(State(st): State<AppState>, Query(q): Query<LookupQ>) -> Json<Va
             "creator_type": "",
             "creator_name": "",
             "thumbnail": Value::Null,
-            "note": "no public details, download will still try the auth ladder",
+            "note": "Roblox doesn't show details for this one, it may be private, deleted or not an asset. Download will still try every way it knows.",
         })),
     }
 }
@@ -1659,28 +1659,33 @@ async fn studio_export(
         return fail("the plugin sent a broken rig, try again").into_response();
     };
     let place = body.place_id.filter(|p| *p > 0);
-    let ids = crate::anim::mesh_ids(&bytes);
+    let (ids, tex_ids) = crate::anim::asset_ids(&bytes);
     let mut set = tokio::task::JoinSet::new();
-    for id in ids.iter().copied() {
+    for (id, kind) in ids.iter().map(|i| (*i, "Mesh")).chain(tex_ids.iter().map(|i| (*i, "Image"))) {
         let st = st.clone();
         set.spawn(async move {
-            let api_key = store::get_secret("api_key");
             for attempt in 0..3u64 {
-                if let Ok(b) = download::resolve_bytes(&st.rb, api_key.as_deref(), &st.pool, id, place).await {
-                    return (id, Some(b));
+                if let Ok(b) = crate::migrate::fetch(&st.rb, &st.pool, place, kind, id).await {
+                    return (kind, id, Some(b));
                 }
                 tokio::time::sleep(std::time::Duration::from_millis(800 * (attempt + 1))).await;
             }
-            (id, None)
+            (kind, id, None)
         });
     }
     let mut meshes = std::collections::HashMap::new();
-    while let Some(Ok((id, got))) = set.join_next().await {
+    let mut textures = std::collections::HashMap::new();
+    while let Some(Ok((kind, id, got))) = set.join_next().await {
         if let Some(b) = got {
-            meshes.insert(id, b);
+            if kind == "Mesh" {
+                meshes.insert(id, b);
+            } else {
+                textures.insert(id, b);
+            }
         }
     }
-    let export = match tokio::task::spawn_blocking(move || crate::anim::build(&bytes, &meshes).map(|e| (e, meshes.len()))).await {
+    let tex_got = textures.len();
+    let export = match tokio::task::spawn_blocking(move || crate::anim::build(&bytes, &meshes, &textures).map(|e| (e, meshes.len()))).await {
         Ok(Ok(x)) => x,
         Ok(Err(e)) => return fail(e).into_response(),
         Err(_) => return fail("the export crashed").into_response(),
@@ -1703,6 +1708,8 @@ async fn studio_export(
         "animations": export.clips,
         "meshes": got,
         "mesh_total": ids.len(),
+        "textures": tex_got,
+        "texture_total": tex_ids.len(),
     }))
     .into_response()
 }
