@@ -23,6 +23,8 @@
   <a href="LICENSE"><img src="https://img.shields.io/badge/license-AGPL--3.0-555?style=flat-square" alt="AGPL-3.0" /></a>
 </p>
 
+<p align="center"><sub>If rbxyoinker saved you some time, a ⭐ on the repo helps other people find it.</sub></p>
+
 <p align="center">
   <a href="#features">Features</a> ·
   <a href="#why-rbxyoinker">Why rbxyoinker</a> ·
@@ -90,7 +92,7 @@ What a website does better: there's nothing to install and you don't need to add
 1. Download [`rbxyoinker.exe`](https://github.com/3vil17/rbxyoinker/releases/latest/download/rbxyoinker.exe). There's nothing to install.
 2. Windows may warn that it's from an unknown publisher because the exe isn't code signed. Click **More info**, then **Run anyway**.
 3. A browser tab opens. If it doesn't, go to http://127.0.0.1:48620.
-4. In **Settings**, add a `.ROBLOSECURITY` cookie from an alt account. Most assets need a signed in account.
+4. In **Settings**, add a `.ROBLOSECURITY` cookie from an alt account. Most assets need a signed in account. [How to get one](#accounts-and-cookies).
 5. Paste an id or link into **Download** and press Fetch. `Ctrl+V` anywhere on the page works too.
 
 To close it, close the tab or use **Quit** at the bottom of the sidebar.
@@ -175,6 +177,13 @@ Sounds, images, meshes and animations can be moved. **Save report** lists what m
 Animating in Blender? Put the animation on your rig, then send it over with [RBXMonkey](https://github.com/Cautioned/Blender-Animations-Plugin).
 
 ## Accounts and cookies
+
+**Getting a cookie:**
+
+1. Install [Cookie-Editor](https://cookie-editor.com) from your browser's official store: [Chrome / Brave](https://chromewebstore.google.com/detail/cookie-editor/hlkenndednhfkekhgcdicdfddnkalmdm), [Edge](https://microsoftedge.microsoft.com/addons/detail/cookieeditor/neaplmfkghagebokkhpjpoebhdledlfi), [Firefox](https://addons.mozilla.org/addon/cookie-editor), [Safari](https://apps.apple.com/app/apple-store/id6446215341) or [Opera](https://addons.opera.com/en/extensions/details/cookie-editor-2/).
+2. Open a private / incognito window and log in to your alt on roblox.com.
+3. Click Cookie-Editor, find `.ROBLOSECURITY` and copy its value. It starts with `_|WARNING`.
+4. Paste it into rbxyoinker, then close the private window. Don't press Log out, that ends the session and the cookie stops working.
 
 A `.ROBLOSECURITY` cookie is a full login, so never share it. rbxyoinker keeps cookies in Windows Credential Manager or the macOS Keychain, not in a file, and only ever sends them to Roblox.
 

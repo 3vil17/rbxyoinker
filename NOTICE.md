@@ -27,3 +27,9 @@ These terms apply to rbxyoinker v0.3.1 and later and must stay with every copy.
    and logo. Saying it is based on rbxyoinker, as term 3 requires, is fine.
 
 Official builds are only published at https://github.com/3vil17/rbxyoinker/releases
+
+## Third-party material
+
+The Cookie-Editor logo (`src/web/cookie-editor.svg`) is from Cookie-Editor by Moustachauve,
+https://github.com/moustachauve/cookie-editor, licensed under GPL-3.0. It is shown next to links
+to Cookie-Editor's official store pages. rbxyoinker isn't affiliated with Cookie-Editor.

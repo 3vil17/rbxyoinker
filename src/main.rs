@@ -5,6 +5,7 @@ mod anim;
 mod convert;
 mod download;
 mod error;
+mod login;
 mod mainacct;
 mod migrate;
 mod platform;
@@ -20,6 +21,9 @@ mod update;
 fn main() {
     if std::env::args().any(|a| a == "--self-test") {
         return;
+    }
+    if std::env::args().any(|a| a == "--login") {
+        std::process::exit(login::run());
     }
     let rt = match tokio::runtime::Runtime::new() {
         Ok(rt) => rt,

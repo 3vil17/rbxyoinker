@@ -1,6 +1,6 @@
 [package]
 name = "rbxyoinker"
-version = "0.3.7"
+version = "0.3.8-beta.1"
 edition = "2021"
 description = "Local Roblox asset downloader with a web UI"
 authors = ["3vil17"]
@@ -13,7 +13,7 @@ winresource = "0.1"
 [dependencies]
 axum = "0.8"
 reqwest = { version = "0.13", features = ["json", "gzip", "multipart"] }
-tokio = { version = "1", features = ["rt-multi-thread", "macros", "net", "time"] }
+tokio = { version = "1", features = ["rt-multi-thread", "macros", "net", "time", "process", "io-util"] }
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 dirs = "7"
@@ -31,6 +31,8 @@ rbx_binary = "3.0.1"
 rbx_dom_weak = "4.2.0"
 rbx_types = "3.1.0"
 base64 = "0.22"
+wry = { version = "0.57", default-features = false }
+tao = "0.37"
 
 [target.'cfg(windows)'.dependencies]
 keyring = { version = "3", features = ["windows-native"] }
