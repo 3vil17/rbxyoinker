@@ -59,10 +59,27 @@ impl Pool {
     }
 
     pub async fn reload(&self, rb: &Roblox) {
+        self.reload_with(rb, |_, _| {}).await;
+    }
+
+    pub async fn reload_with(&self, rb: &Roblox, progress: impl Fn(usize, usize)) {
         let cookies = store::load_cookies();
-        let mut fresh = Vec::with_capacity(cookies.len());
-        for cookie in cookies {
-            let info = rb.cookie_info(&cookie).await;
+        let total = cookies.len();
+        progress(0, total);
+        let mut checks = tokio::task::JoinSet::new();
+        for (i, cookie) in cookies.iter().cloned().enumerate() {
+            let rb = rb.clone();
+            checks.spawn(async move { (i, rb.cookie_info(&cookie).await) });
+        }
+        let mut infos = Vec::with_capacity(total);
+        while let Some(Ok(done)) = checks.join_next().await {
+            infos.push(done);
+            progress(infos.len(), total);
+        }
+        infos.sort_by_key(|(i, _)| *i);
+        let mut fresh = Vec::with_capacity(total);
+        for (i, info) in infos {
+            let cookie = cookies[i].clone();
             let (uses, limited) = {
                 let st = self.lock();
                 st.accounts

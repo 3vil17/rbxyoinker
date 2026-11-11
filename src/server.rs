@@ -82,7 +82,8 @@ async fn tab_closed(State(st): State<AppState>) -> Json<Value> {
 }
 
 async fn ready(State(st): State<AppState>) -> Json<Value> {
-    ok(json!({ "ready": st.ready.load(Ordering::SeqCst) }))
+    let (done, total) = *st.boot.lock().unwrap_or_else(|e| e.into_inner());
+    ok(json!({ "ready": st.ready.load(Ordering::SeqCst), "done": done, "total": total, "version": env!("CARGO_PKG_VERSION") }))
 }
 
 async fn ping(State(st): State<AppState>) -> Json<Value> {
@@ -112,6 +113,7 @@ struct AppState {
     required: Arc<Mutex<Option<String>>>,
     key: Arc<String>,
     ready: Arc<std::sync::atomic::AtomicBool>,
+    boot: Arc<Mutex<(usize, usize)>>,
 }
 
 #[derive(Default)]
@@ -260,10 +262,12 @@ pub async fn run(updated: bool) -> std::io::Result<()> {
         required: Arc::new(Mutex::new(saved_requirement())),
         key: Arc::new(new_key()),
         ready: Arc::default(),
+        boot: Arc::default(),
     };
     let loader = state.clone();
     tokio::spawn(async move {
-        loader.pool.reload(&loader.rb).await;
+        let boot = loader.boot.clone();
+        loader.pool.reload_with(&loader.rb, move |done, total| *boot.lock().unwrap_or_else(|e| e.into_inner()) = (done, total)).await;
         loader.ready.store(true, Ordering::SeqCst);
     });
     refresh_plugin();
@@ -2403,6 +2407,7 @@ mod tests {
             required: Arc::new(Mutex::new(required.map(String::from))),
             key: Arc::new("k".repeat(48)),
             ready: Arc::default(),
+            boot: Arc::default(),
         }
     }
 
