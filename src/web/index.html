@@ -59,6 +59,9 @@
 
   nav button svg, h2.sect svg { width: 14px; height: 14px; stroke: currentColor; fill: none; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
   h2.sect { display: flex; align-items: center; gap: 7px; }
+  .sect-link { margin-left: auto; font-size: 0.72rem; font-weight: 400; color: rgb(136, 136, 136); text-decoration: none; }
+  .upd-dot { appearance: none; border: none; padding: 0; width: 7px; height: 7px; border-radius: 50%; background: rgb(59, 186, 87); margin: 0 0 1px 5px; vertical-align: middle; cursor: pointer; box-shadow: 0 0 0 3px rgba(59, 186, 87, 0.18); }
+  .sect-link:hover { color: rgb(224, 224, 224); }
   .btn svg { stroke-linecap: round; stroke-linejoin: round; }
   textarea {
     background: rgb(22, 22, 22); border: 1px solid rgba(255, 255, 255, 0.09); border-radius: 6px;
@@ -159,6 +162,12 @@
   .st.working, .st.waiting, .st.downloading, .st.downloaded, .st.uploading { color: rgb(212,212,212); }
   .row .btn { padding: 4px 9px; font-size: 12px; }
   .row .btn.ic { padding: 4px 6px; flex-shrink: 0; }
+  #mg-rows .st, #bulk-rows .st { min-width: 74px; text-align: center; box-sizing: border-box; }
+  .racts { display: flex; gap: 4px; flex-shrink: 0; }
+  .racts .btn.ic { padding: 5px 6px; font-size: 12px; }
+  .btn.na, .btn.na:hover, .btn.na:active { opacity: 0.28; cursor: default; background: rgba(255, 255, 255, 0.05); border-color: rgba(255, 255, 255, 0.1); color: rgb(212, 212, 212); transform: none; }
+  .btn.na:hover svg { transform: none; }
+  .row .btn.sis { padding: 4px 9px; flex-shrink: 0; white-space: nowrap; display: inline-flex; align-items: center; gap: 5px; }
 
   input[type="text"], input[type="password"] {
     background: rgb(22, 22, 22); border: 1px solid rgba(255, 255, 255, 0.09); border-radius: 6px;
@@ -539,7 +548,7 @@
       <div class="side-foot">
         <div class="side-jobs" id="side-jobs"></div>
         <button class="acct" id="side-acct"></button>
-        <p class="foot"><span id="app-version"></span> by <a href="https://github.com/3vil17" target="_blank">3vil17</a><br><a href="https://github.com/3vil17/rbxyoinker" target="_blank">GitHub</a> · <a href="#" id="changes-link">Changelog</a> · <a href="#" id="quit-link">Quit</a><br>© 2026 3vil17 · <a href="/license" target="_blank">AGPL-3.0</a><br>No warranty</p>
+        <p class="foot"><span id="app-version"></span><button class="upd-dot" id="upd-dot" style="display:none"></button> by <a href="https://github.com/3vil17" target="_blank">3vil17</a><br><a href="https://github.com/3vil17/rbxyoinker" target="_blank">GitHub</a> · <a href="#" id="changes-link">Changelog</a> · <a href="#" id="quit-link">Quit</a><br>© 2026 3vil17 · <a href="/license" target="_blank">AGPL-3.0</a><br>No warranty</p>
       </div>
     </aside>
 
@@ -585,7 +594,7 @@
         </div>
 
         <div class="card" id="recent-card" style="display:none">
-          <h2 class="sect"><i data-i="history"></i>Recent</h2>
+          <h2 class="sect"><i data-i="history"></i>Recent<a href="#" class="sect-link" id="recent-open">Open folder</a></h2>
           <div class="rows" id="recent-list" style="margin-top:0"></div>
         </div>
 
@@ -818,6 +827,7 @@
         <div class="card">
           <div class="field-row">
             <input id="hist-search" type="text" placeholder="Search by name, type or id" autocomplete="off" spellcheck="false" />
+            <button class="btn" id="hist-open" data-i="folderOpen">Open folder</button>
             <button class="btn" id="clear-hist" data-i="trash">Clear</button>
           </div>
           <div class="chips" id="hist-chips"></div>
@@ -869,6 +879,7 @@
               <div class="field-row">
                 <input id="save-dir" type="text" placeholder="Download folder" autocomplete="off" spellcheck="false" />
                 <button class="btn" id="browse-dir" data-i="folder">Browse</button>
+                <button class="btn" id="open-dir" data-i="folderOpen">Open</button>
               </div>
             </div>
             <div class="field">
@@ -1148,6 +1159,7 @@ document.addEventListener("click", (e) => {
 });
 // Lucide icons (ISC license), inlined
 const ICONS = {
+  folderOpen: '<path d="m6 14 1.5-2.9A2 2 0 0 1 9.24 10H20a2 2 0 0 1 1.94 2.5l-1.54 6a2 2 0 0 1-1.95 1.5H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h3.9a2 2 0 0 1 1.69.9l.81 1.2a2 2 0 0 0 1.67.9H18a2 2 0 0 1 2 2v2"/>',
   box: '<path d="M21 8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16Z"/><path d="m3.3 7 8.7 5 8.7-5"/><path d="M12 22V12"/>',
   download: '<path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" x2="12" y1="15" y2="3"/>',
   code: '<polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/>',
@@ -1271,18 +1283,39 @@ async function loadRecent() {
   $("#recent-card").style.display = rows.length ? "" : "none";
   $("#recent-list").innerHTML = rows.map((h, i) =>
     '<div class="row"><div class="main"><div class="t">' + esc(h.name) + " <span>#" + h.id + "</span></div>" +
-    '<div class="s">' + esc(h.type_label) + " · " + esc(fmtWhen(h.when)) + "</div></div>" +
-    '<button class="btn" data-c="' + i + '" title="Copy as rbxassetid://">' + svg("copy") + "</button>" +
-    (/\.rbxmx?$/i.test(h.path || "") ? '<button class="btn" data-ins="' + i + '" title="Insert into Studio">' + svg("box") + "</button>" : "") +
-    '<button class="btn" data-r="' + i + '" title="Show in folder">' + svg("folder") + "</button></div>").join("");
-  $("#recent-list").querySelectorAll("button[data-ins]").forEach((b) => { b.onclick = () => insertIntoStudio($("#dl-note"), rows[b.dataset.ins].path); });
-  $("#recent-list").querySelectorAll("button[data-r]").forEach((b) => { b.onclick = () => post("/api/reveal", { path: rows[b.dataset.r].path }); });
-  $("#recent-list").querySelectorAll("button[data-c]").forEach((b) => { b.onclick = () => copyAssetId(b, rows[b.dataset.c].id); });
+    '<div class="s">' + esc(h.type_label) + " · " + esc(fmtWhen(h.when)) + "</div></div>" + rowActs(h) + "</div>").join("");
+  wireActs($("#recent-list"), () => { loadRecent(); if (histAll.length) loadHistory(); });
+}
+function rowActs(h) {
+  const path = esc(h.path || ""), model = /\.rbxmx?$/i.test(h.path || "");
+  const b = (act, icon, title, on, data) => '<button class="btn ic' + (on ? "" : " na") + '" data-act="' + act + '" ' + data + ' title="' + title + '"' + (on ? "" : ' aria-disabled="true"') + ">" + svg(icon) + "</button>";
+  return '<span class="racts">' +
+    b("again", "refresh", "Download again", true, 'data-id="' + h.id + '"') +
+    b("copy", "copy", "Copy as rbxassetid://", true, 'data-id="' + h.id + '"') +
+    b("insert", "box", model ? "Insert into Studio" : "Only models and places can go into Studio", model, 'data-path="' + path + '"') +
+    b("folder", "folder", h.path ? "Show in folder" : "No file saved", !!h.path, 'data-path="' + path + '"') + "</span>";
+}
+function wireActs(root, after) {
+  root.querySelectorAll("button[data-act]").forEach((b) => {
+    if (b.classList.contains("na")) return;
+    const act = b.dataset.act;
+    if (act === "copy") b.onclick = () => copyAssetId(b, b.dataset.id);
+    else if (act === "insert") b.onclick = () => insertIntoStudio(null, b.dataset.path);
+    else if (act === "folder") b.onclick = () => post("/api/reveal", { path: b.dataset.path });
+    else if (act === "again") b.onclick = async () => {
+      b.disabled = true; b.innerHTML = '<span class="spinner"></span>';
+      const res = await post("/api/download", { id: b.dataset.id });
+      b.disabled = false; b.innerHTML = svg("refresh");
+      toast(res.ok ? "ok" : "err", res.ok ? "Saved " + esc(res.data.name) + "." : esc(friendly(res.error)));
+      if (res.ok && after) after();
+    };
+  });
 }
 async function insertIntoStudio(noteEl, path) {
   const res = await post("/api/studio/insert", { path });
-  if (!res.ok) { showNote(noteEl, "err", esc(res.error)); return; }
-  showNote(noteEl, "info", res.data.live ? "Inserting it into Studio." : "Studio isn't open, it goes in when the plugin connects.");
+  const msg = res.ok ? (res.data.live ? "Inserting it into Studio." : "Studio isn't open, it goes in when the plugin connects.") : esc(res.error);
+  if (!noteEl) { toast(res.ok ? "ok" : "err", msg); return; }
+  showNote(noteEl, res.ok ? "info" : "err", msg);
 }
 async function copyAssetId(btn, id) {
   try { await navigator.clipboard.writeText("rbxassetid://" + id); } catch (e) { return; }
@@ -1726,7 +1759,7 @@ function renderMigrate() {
       (why ? '<div class="s err">' + esc(why) + "</div>"
         : '<div class="s">' + esc(it.type_label || "?") + (it.owner_name ? " · by " + esc(it.owner_name) : "") +
           (it.from_script ? ' · <span style="color:rgb(212,180,90)" title="' + esc(it.script) + '">in ' + esc(it.script.split(".").pop() || "a script") + "</span>" : "") + "</div>") +
-      "</div>" + (stLive ? '<button class="btn ic" data-show="' + it.id + '" title="Show in Studio">' + svg("crosshair") + "</button>" : "") +
+      "</div>" + (stLive ? '<button class="btn sis" data-show="' + it.id + '" title="Select every instance that uses this id">' + svg("crosshair") + "Select in Studio</button>" : "") +
       (state ? '<span class="st ' + esc(state) + '">' + esc(state) + "</span>" : "") + "</div>";
   }).join("");
   $("#mg-start").disabled = j.running || !j.checked || !picked.length;
@@ -1940,8 +1973,8 @@ function renderBulk(d) {
     (accessOf[x.id] ? '<span class="tag' + (accessOf[x.id] === "Public" ? " pub" : "") + '">' + accessOf[x.id] + "</span>" : "") + "</div>" +
     (x.error ? '<div class="s err">' + errHtml(x.error) + "</div>" : x.method ? '<div class="s">' + esc(x.method) + "</div>" : "") +
     '</div><span class="st ' + x.state + '">' + x.state + "</span>" +
-    (x.path ? '<button class="btn" data-p="' + i + '">' + svg("folder") + "</button>" : "") + "</div>").join("");
-  $("#bulk-rows").querySelectorAll("button[data-p]").forEach((b) => { b.onclick = () => post("/api/reveal", { path: it[b.dataset.p].path }); });
+    '<button class="btn ic' + (x.path ? "" : " na") + '" data-p="' + i + '" title="' + (x.path ? "Show in folder" : "Not saved yet") + '">' + svg("folder") + "</button></div>").join("");
+  $("#bulk-rows").querySelectorAll("button[data-p]:not(.na)").forEach((b) => { b.onclick = () => post("/api/reveal", { path: it[b.dataset.p].path }); });
   const groups = {};
   if (!d.running) it.filter((x) => x.state === "error").forEach((x) => { (groups[failReason(x.error)] = groups[failReason(x.error)] || []).push(x.id); });
   const order = Object.keys(groups).sort((a, b) => groups[b].length - groups[a].length);
@@ -2113,6 +2146,9 @@ async function checkUpdate() {
     fb.onclick = () => installUpdate(fb, $("#forced-note"));
     return;
   }
+  const dot = $("#upd-dot"); dot.style.display = "";
+  dot.title = res.data.latest + " is out" + (res.data.can_install ? ", click to update" : ", click to open it on GitHub");
+  dot.onclick = () => { if (res.data.can_install) installUpdate($("#update-btn") || dot, $("#dl-note")); else window.open(res.data.url, "_blank"); };
   const el = $("#update-line"); el.style.display = "";
   el.innerHTML = svg("download").replace("<svg", '<svg class="ic"') + 'Update available: <a href="' + esc(res.data.url) + '" target="_blank">' + esc(res.data.latest) + "</a> (you have v" + esc(res.data.current) + ")" +
     (res.data.can_install ? ' <button class="btn" id="update-btn" style="padding:3px 10px; font-size:12px; margin-left:6px">Update now</button>' : "");
@@ -2151,20 +2187,12 @@ function renderHistory() {
     '<div class="hist-item">' + (histThumbs[h.id] ? '<img class="rthumb" loading="lazy" src="' + esc(histThumbs[h.id]) + '" alt="" />' : '<span class="rthumb"></span>') + '<div class="hist-main">' +
     '<div class="hist-name">' + esc(h.name) + ' <span>#' + h.id + '</span></div>' +
     '<div class="hist-sub">' + esc(h.type_label) + " · " + esc(h.method) + " · " + esc(fmtWhen(h.when)) + '</div>' +
-    '</div><button class="btn" data-again="' + h.id + '" title="Download again">' + svg("refresh") + '</button><button class="btn" data-copy="' + h.id + '" title="Copy as rbxassetid://">' + svg("copy") + '</button><button class="btn" data-path="' + esc(h.path) + '">Show</button></div>'
+    "</div>" + rowActs(h) + "</div>"
   ).join("");
-  list.querySelectorAll("button[data-path]").forEach((b) => { b.onclick = () => post("/api/reveal", { path: b.dataset.path }); });
-  list.querySelectorAll("button[data-copy]").forEach((b) => { b.onclick = () => copyAssetId(b, b.dataset.copy); });
-  list.querySelectorAll("button[data-again]").forEach((b) => {
-    b.onclick = async () => {
-      b.disabled = true; b.innerHTML = '<span class="spinner"></span>';
-      const res = await post("/api/download", { id: b.dataset.again });
-      b.disabled = false; b.innerHTML = svg("refresh");
-      toast(res.ok ? "ok" : "err", res.ok ? "Saved " + esc(res.data.name) + "." : esc(friendly(res.error)));
-      if (res.ok) loadHistory();
-    };
-  });
+  wireActs(list, () => { loadHistory(); loadRecent(); });
 }
+async function openFolder(e) { if (e) e.preventDefault(); const res = await post("/api/open-folder", {}); if (!res.ok) toast("err", esc(friendly(res.error))); }
+$("#recent-open").onclick = openFolder; $("#hist-open").onclick = openFolder; $("#open-dir").onclick = openFolder;
 $("#clear-hist").onclick = async () => { await post("/api/history/clear", {}); loadHistory(); };
 
 document.querySelectorAll(".seg").forEach(segThumb);
