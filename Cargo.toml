@@ -11,7 +11,7 @@ repository = "https://github.com/3vil17/rbxyoinker"
 winresource = "0.1"
 
 [dependencies]
-axum = "0.7"
+axum = "0.8"
 reqwest = { version = "0.13", features = ["json", "gzip", "multipart"] }
 tokio = { version = "1", features = ["rt-multi-thread", "macros", "net", "time"] }
 serde = { version = "1", features = ["derive"] }
@@ -24,7 +24,7 @@ rfd = "0.18"
 zip = { version = "9", default-features = false, features = ["deflate"] }
 lz4_flex = "0.11"
 zstd = "0.13"
-getrandom = "0.2"
+getrandom = "0.4"
 minisign-verify = "0.3"
 rbxmesh = { git = "https://github.com/3vil17/rbxmesh", tag = "v0.1.0" }
 image = { version = "0.25", default-features = false, features = ["png", "jpeg", "webp"] }

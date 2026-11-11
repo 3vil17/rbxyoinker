@@ -47,7 +47,7 @@ fn saved_path() -> std::path::PathBuf {
 
 fn random_hex(bytes: usize) -> String {
     let mut buf = vec![0u8; bytes];
-    let _ = getrandom::getrandom(&mut buf);
+    let _ = getrandom::fill(&mut buf);
     buf.iter().map(|b| format!("{b:02x}")).collect()
 }
 
@@ -90,7 +90,7 @@ impl Pairing {
 
     pub fn new_code(&mut self) -> String {
         let mut buf = [0u8; 4];
-        let _ = getrandom::getrandom(&mut buf);
+        let _ = getrandom::fill(&mut buf);
         let code = format!("{:06}", u32::from_le_bytes(buf) % 1_000_000);
         self.code = Some((code.clone(), Instant::now()));
         self.wrong = 0;
