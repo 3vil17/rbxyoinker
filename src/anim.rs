@@ -258,6 +258,7 @@ struct PartInfo {
     shape: Shape,
     color: [f32; 4],
     visible: bool,
+    texture: Option<i64>,
 }
 
 fn part_info(dom: &WeakDom, r: Ref) -> Option<PartInfo> {
@@ -267,36 +268,53 @@ fn part_info(dom: &WeakDom, r: Ref) -> Option<PartInfo> {
     }
     let size = vec3(dom, r, &["Size", "size"]).unwrap_or([1.0; 3]);
     let mut shape = Shape::Box;
+    let mut texture = None;
     if inst.class.as_str() == "MeshPart" {
         if let Some(id) = prop(dom, r, &["MeshContent", "MeshId"]).and_then(asset_id) {
             shape = Shape::Mesh { id, scale: None };
         }
+        texture = prop(dom, r, &["TextureContent", "TextureID"]).and_then(asset_id);
     }
     for c in inst.children() {
         let Some(child) = dom.get_by_ref(*c) else { continue };
-        if child.class.as_str() == "SpecialMesh" {
-            if let Some(id) = prop(dom, *c, &["MeshId"]).and_then(asset_id) {
-                shape = Shape::Mesh { id, scale: Some(vec3(dom, *c, &["Scale"]).unwrap_or([1.0; 3])) };
+        match child.class.as_str() {
+            "SpecialMesh" => {
+                if let Some(id) = prop(dom, *c, &["MeshId"]).and_then(asset_id) {
+                    shape = Shape::Mesh { id, scale: Some(vec3(dom, *c, &["Scale"]).unwrap_or([1.0; 3])) };
+                }
+                if let Some(id) = prop(dom, *c, &["TextureId"]).and_then(asset_id) {
+                    texture = Some(id);
+                }
             }
+            "SurfaceAppearance" => {
+                if let Some(id) = prop(dom, *c, &["ColorMapContent", "ColorMap"]).and_then(asset_id) {
+                    texture = Some(id);
+                }
+            }
+            _ => {}
         }
     }
     let visible = number(dom, r, "Transparency").unwrap_or(0.0) < 0.99;
-    Some(PartInfo { name: inst.name.clone(), cf: cframe(dom, r, &["CFrame"])?, size, shape, color: color(dom, r), visible })
+    Some(PartInfo { name: inst.name.clone(), cf: cframe(dom, r, &["CFrame"])?, size, shape, color: color(dom, r), visible, texture })
 }
 
-pub fn mesh_ids(bytes: &[u8]) -> Vec<i64> {
-    let Ok(dom) = rbx_binary::from_reader(bytes) else { return Vec::new() };
-    let mut out = Vec::new();
+pub fn asset_ids(bytes: &[u8]) -> (Vec<i64>, Vec<i64>) {
+    let Ok(dom) = rbx_binary::from_reader(bytes) else { return (Vec::new(), Vec::new()) };
+    let mut meshes = Vec::new();
+    let mut textures = Vec::new();
     for inst in dom.descendants() {
         if let Some(p) = part_info(&dom, inst.referent()).filter(|p| p.visible) {
             if let Shape::Mesh { id, .. } = p.shape {
-                if !out.contains(&id) {
-                    out.push(id);
+                if !meshes.contains(&id) {
+                    meshes.push(id);
                 }
+            }
+            if let Some(id) = p.texture.filter(|id| !textures.contains(id)) {
+                textures.push(id);
             }
         }
     }
-    out
+    (meshes, textures)
 }
 
 struct Bone {
@@ -311,14 +329,17 @@ struct Prim {
     pos: Vec<[f32; 3]>,
     nrm: Vec<[f32; 3]>,
     idx: Vec<u32>,
+    uv: Vec<[f32; 2]>,
     skin: Option<Vec<([u16; 4], [f32; 4])>>,
     color: [f32; 4],
+    texture: Option<i64>,
 }
 
 struct Geo {
     pos: Vec<[f32; 3]>,
     nrm: Vec<[f32; 3]>,
     idx: Vec<u32>,
+    uv: Vec<[f32; 2]>,
     skin: Option<Vec<([u16; 4], [u8; 4])>>,
     names: Vec<String>,
 }
@@ -404,6 +425,7 @@ fn box_prim(size: [f32; 3]) -> Geo {
     let mut pos = Vec::new();
     let mut nrm = Vec::new();
     let mut idx = Vec::new();
+    let mut uv = Vec::new();
     for axis in 0..3 {
         for sign in [1.0f32, -1.0] {
             let (u, v) = ((axis + 1) % 3, (axis + 2) % 3);
@@ -417,6 +439,7 @@ fn box_prim(size: [f32; 3]) -> Geo {
                 let mut n = [0.0; 3];
                 n[axis] = sign;
                 nrm.push(n);
+                uv.push([(a + 1.0) / 2.0, (1.0 - b) / 2.0]);
             }
             if sign > 0.0 {
                 idx.extend([base, base + 1, base + 2, base, base + 2, base + 3]);
@@ -425,7 +448,7 @@ fn box_prim(size: [f32; 3]) -> Geo {
             }
         }
     }
-    Geo { pos, nrm, idx, skin: None, names: Vec::new() }
+    Geo { pos, nrm, idx, uv, skin: None, names: Vec::new() }
 }
 
 fn mesh_prim(mesh: &rbxmesh::Mesh, size: [f32; 3], scale: Option<[f32; 3]>) -> Option<Geo> {
@@ -459,7 +482,8 @@ fn mesh_prim(mesh: &rbxmesh::Mesh, size: [f32; 3], scale: Option<[f32; 3]>) -> O
         .collect();
     let idx = faces.iter().flat_map(|f| f.iter().copied()).filter(|i| (*i as usize) < mesh.vertices.len()).collect::<Vec<_>>();
     let names = mesh.bones.iter().map(|b| b.name.clone()).collect();
-    (idx.len() % 3 == 0).then_some(Geo { pos, nrm, idx, skin: mesh.joints(), names })
+    let uv = mesh.vertices.iter().map(|v| v.uv).collect();
+    (idx.len() % 3 == 0).then_some(Geo { pos, nrm, idx, uv, skin: mesh.joints(), names })
 }
 
 pub struct Export {
@@ -468,7 +492,7 @@ pub struct Export {
     pub clips: Vec<String>,
 }
 
-pub fn build(bytes: &[u8], meshes: &HashMap<i64, Vec<u8>>) -> Result<Export, String> {
+pub fn build(bytes: &[u8], meshes: &HashMap<i64, Vec<u8>>, textures: &HashMap<i64, Vec<u8>>) -> Result<Export, String> {
     let dom = rbx_binary::from_reader(bytes).map_err(|e| format!("couldn't read the rig: {e}"))?;
     let mut parts: HashMap<Ref, PartInfo> = HashMap::new();
     let mut motors: Vec<(Ref, Ref, Xf, Xf)> = Vec::new();
@@ -621,7 +645,8 @@ pub fn build(bytes: &[u8], meshes: &HashMap<i64, Vec<u8>>) -> Result<Export, Str
                 })
                 .collect()
         });
-        prims.push(Prim { bone, pos, nrm, idx: geo.idx, skin, color: p.color });
+        let texture = p.texture.filter(|id| textures.contains_key(id));
+        prims.push(Prim { bone, pos, nrm, idx: geo.idx, uv: geo.uv, skin, color: p.color, texture });
     }
     if prims.is_empty() {
         return Err("no visible parts are attached to the rig's joints".into());
@@ -629,7 +654,7 @@ pub fn build(bytes: &[u8], meshes: &HashMap<i64, Vec<u8>>) -> Result<Export, Str
     prims.sort_by_key(|p| p.bone);
 
     let clips = clips(&dom);
-    let glb = write_glb(&bones, &prims, &clips);
+    let glb = write_glb(&bones, &prims, &clips, textures);
     Ok(Export { glb, bones: bones.len(), clips: clips.iter().map(|c| c.name.clone()).collect() })
 }
 
@@ -695,7 +720,7 @@ fn local_of(bones: &[Bone], i: usize) -> Xf {
     }
 }
 
-fn write_glb(bones: &[Bone], prims: &[Prim], clips: &[Clip]) -> Vec<u8> {
+fn write_glb(bones: &[Bone], prims: &[Prim], clips: &[Clip], textures: &HashMap<i64, Vec<u8>>) -> Vec<u8> {
     let mut buf = Buf { bin: Vec::new(), views: Vec::new(), accessors: Vec::new() };
     let mut nodes = vec![json!({ "name": "Armature", "rotation": [0.0, 1.0, 0.0, 0.0], "children": [1] })];
     for (i, b) in bones.iter().enumerate() {
@@ -710,7 +735,9 @@ fn write_glb(bones: &[Bone], prims: &[Prim], clips: &[Clip]) -> Vec<u8> {
     let ibm: Vec<f32> = bones.iter().flat_map(|b| b.world.inv().matrix()).collect();
     let ibm_acc = buf.floats(&ibm, 16, "MAT4", None, false);
 
-    let mut materials: Vec<[f32; 4]> = Vec::new();
+    let mut images: Vec<i64> = Vec::new();
+    let mut image_json = Vec::new();
+    let mut materials: Vec<([f32; 4], Option<usize>)> = Vec::new();
     let mut primitives = Vec::new();
     for p in prims {
         let flat_pos: Vec<f32> = p.pos.iter().flatten().copied().collect();
@@ -719,17 +746,31 @@ fn write_glb(bones: &[Bone], prims: &[Prim], clips: &[Clip]) -> Vec<u8> {
             Some(skin) => (skin.iter().flat_map(|s| s.0).collect(), skin.iter().flat_map(|s| s.1).collect()),
             None => (p.pos.iter().flat_map(|_| [p.bone as u16, 0, 0, 0]).collect(), p.pos.iter().flat_map(|_| [1.0f32, 0.0, 0.0, 0.0]).collect()),
         };
-        let mat = materials.iter().position(|c| c == &p.color).unwrap_or_else(|| {
-            materials.push(p.color);
+        let tex = p.texture.and_then(|id| {
+            if let Some(i) = images.iter().position(|x| *x == id) {
+                return Some(i);
+            }
+            let data = textures.get(&id)?;
+            let mime = if data.starts_with(&[0x89, b'P', b'N', b'G']) { "image/png" } else { "image/jpeg" };
+            let view = buf.push(data, None);
+            image_json.push(json!({ "bufferView": view, "mimeType": mime, "name": id.to_string() }));
+            images.push(id);
+            Some(images.len() - 1)
+        });
+        let key = (if tex.is_some() { [1.0; 4] } else { p.color }, tex);
+        let mat = materials.iter().position(|m| *m == key).unwrap_or_else(|| {
+            materials.push(key);
             materials.len() - 1
         });
+        let flat_uv: Vec<f32> = p.uv.iter().flatten().copied().collect();
         let pos = buf.floats(&flat_pos, 3, "VEC3", Some(34962), true);
         let nrm = buf.floats(&flat_nrm, 3, "VEC3", Some(34962), false);
         let jnt = buf.joints(&joints);
         let wgt = buf.floats(&weights, 4, "VEC4", Some(34962), false);
         let idx = buf.ints(&p.idx, 34963);
+        let uvs = buf.floats(&flat_uv, 2, "VEC2", Some(34962), false);
         primitives.push(json!({
-            "attributes": { "POSITION": pos, "NORMAL": nrm, "JOINTS_0": jnt, "WEIGHTS_0": wgt },
+            "attributes": { "POSITION": pos, "NORMAL": nrm, "TEXCOORD_0": uvs, "JOINTS_0": jnt, "WEIGHTS_0": wgt },
             "indices": idx,
             "material": mat,
         }));
@@ -780,7 +821,16 @@ fn write_glb(bones: &[Bone], prims: &[Prim], clips: &[Clip]) -> Vec<u8> {
         "nodes": nodes,
         "meshes": [{ "name": "Body", "primitives": primitives }],
         "skins": [{ "joints": (1..=bones.len()).collect::<Vec<_>>(), "inverseBindMatrices": ibm_acc, "skeleton": 1 }],
-        "materials": materials.iter().map(|c| json!({ "pbrMetallicRoughness": { "baseColorFactor": c, "metallicFactor": 0.0, "roughnessFactor": 0.8 } })).collect::<Vec<_>>(),
+        "materials": materials
+            .iter()
+            .map(|(c, tex)| {
+                let mut pbr = json!({ "baseColorFactor": c, "metallicFactor": 0.0, "roughnessFactor": 0.8 });
+                if let Some(t) = tex {
+                    pbr["baseColorTexture"] = json!({ "index": t });
+                }
+                json!({ "pbrMetallicRoughness": pbr })
+            })
+            .collect::<Vec<_>>(),
         "bufferViews": buf.views,
         "accessors": buf.accessors,
     });
@@ -790,6 +840,11 @@ fn write_glb(bones: &[Bone], prims: &[Prim], clips: &[Clip]) -> Vec<u8> {
     doc["buffers"] = json!([{ "byteLength": buf.bin.len() }]);
     if !animations.is_empty() {
         doc["animations"] = json!(animations);
+    }
+    if !image_json.is_empty() {
+        doc["images"] = json!(image_json);
+        doc["samplers"] = json!([{ "magFilter": 9729, "minFilter": 9987, "wrapS": 10497, "wrapT": 10497 }]);
+        doc["textures"] = json!((0..image_json.len()).map(|i| json!({ "source": i, "sampler": 0 })).collect::<Vec<_>>());
     }
     let mut text = serde_json::to_vec(&doc).unwrap_or_default();
     while text.len() % 4 != 0 {

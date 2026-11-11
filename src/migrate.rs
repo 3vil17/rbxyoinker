@@ -175,7 +175,7 @@ fn still_processing(decal: i64) -> Error {
     Error::Other(format!("uploaded as decal {decal}, Roblox is still processing it. Retry in a minute"))
 }
 
-async fn fetch(rb: &Roblox, pool: &Pool, place: Option<i64>, kind: &str, id: i64) -> Result<Vec<u8>> {
+pub async fn fetch(rb: &Roblox, pool: &Pool, place: Option<i64>, kind: &str, id: i64) -> Result<Vec<u8>> {
     let api_key = store::get_secret("api_key");
     let mut bytes = download::resolve_bytes(rb, api_key.as_deref(), pool, id, place).await?;
     if kind == "Image" {
