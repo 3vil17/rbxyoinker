@@ -1053,7 +1053,10 @@ async function api(path, opts) {
   const r = await fetch(path, opts);
   const j = await r.json();
   if (r.status === 401 && j && j.bad_key) { location.reload(); return j; }
-  if (j && j.update_required) setTimeout(checkUpdate, 0);
+  if (j && j.update_required) {
+    const f = document.getElementById("forced");
+    if (!f || f.style.display !== "flex") setTimeout(checkUpdate, 0);
+  }
   return j;
 }
 function post(path, body) {
@@ -2251,12 +2254,15 @@ async function installUpdate(btn, noteEl) {
   btn.innerHTML = "Restart rbxyoinker to finish";
 }
 let updateInfo = null;
+const forcedNode = $("#forced");
 async function checkUpdate() {
   if (updating) return;
   const res = await api("/api/update").catch(() => null);
   if (!res || !res.ok || !res.data.available) return;
   updateInfo = res.data;
   if (res.data.important) {
+    if (!forcedNode.isConnected) document.body.append(forcedNode);
+    const shell = document.querySelector(".shell"); if (shell) shell.remove();
     $("#forced-ver").textContent = res.data.latest + " (you have v" + res.data.current + ")";
     $("#forced-notes").innerHTML = mdLite(res.data.notes || "This update fixes something important, so older versions can't keep running.");
     $("#forced-link").href = res.data.url;
