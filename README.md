@@ -103,9 +103,9 @@ Bulk and Migrate skip Roblox's own default assets, like the sky, the baseplate g
 Once the plugin is paired, the app and Studio work together outside of Migrate too:
 
 - **Insert into Studio.** The box button on a model in Recent or History drops it in front of the camera.
-- **Animations onto a rig.** Select a rig, then press the box button on an animation. It goes into the rig's AnimSaves, where Eclipse Animator and Roblox's Animation Editor pick it up. **Yoink place animations to rig** in the plugin does this for every animation the place uses.
+- **Animations onto a rig.** Select a rig, then press the box button on an animation. It goes into the rig's AnimSaves, where Eclipse Animator and Roblox's Animation Editor pick it up. **Copy place animations onto rig** in the plugin does this for every animation the place uses.
 - **Download selection.** Sends the asset ids of whatever you have selected in Studio to Bulk.
-- **Export rig to Blender.** Saves the selected rig and its animations as an animated `.glb` in the Blender folder of your downloads, for viewing or for other 3D tools.
+- **Save rig as .glb.** Saves the selected rig with its textures and animations as an animated `.glb` in the Blender folder of your downloads, for 3D viewers, Blender, Unity, Godot and other 3D apps. To edit animations and send them back to Studio, use RBXMonkey below.
 
 Animating in Blender? Put the yoinked animation on your rig, then send it over with [RBXMonkey](https://github.com/Cautioned/Blender-Animations-Plugin).
 

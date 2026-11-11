@@ -499,7 +499,7 @@ local lastScan = hintTemplate:Clone()
 lastScan.TextSize = 12
 lastScan.Text = ""
 lastScan.Visible = false
-lastScan.LayoutOrder = 9
+lastScan.LayoutOrder = 10
 tone(lastScan, { TextColor3 = "dim" })
 lastScan.Parent = scanCard
 
@@ -512,15 +512,20 @@ bulkButton.Parent = scanCard
 
 local animButton = buttonTemplate:Clone()
 setIcon(animButton.Icon, icons.move)
-animButton.Label.Text = "Yoink place animations to rig"
-animButton.LayoutOrder = 7
+animButton.Label.Text = "Copy place animations onto rig"
+animButton.LayoutOrder = 8
 animButton.Visible = false
 animButton.Parent = scanCard
 
+local rigHint = hintTemplate:Clone()
+rigHint.LayoutOrder = 7
+rigHint.Visible = false
+rigHint.Parent = scanCard
+
 local exportButton = buttonTemplate:Clone()
 setIcon(exportButton.Icon, icons.link)
-exportButton.Label.Text = "Export rig to Blender"
-exportButton.LayoutOrder = 8
+exportButton.Label.Text = "Save rig as .glb"
+exportButton.LayoutOrder = 9
 exportButton.Visible = false
 exportButton.Parent = scanCard
 
@@ -850,7 +855,13 @@ local function showScope()
 	scopeHint.Visible = not has
 	bulkButton.Visible = has
 	animButton.Visible = animRig ~= nil or findRig() ~= nil
-	exportButton.Visible = findRig() ~= nil
+	local rig = findRig()
+	exportButton.Visible = rig ~= nil
+	rigHint.Visible = rig ~= nil
+	if rig then
+		rigHint.Text = rig.Name
+			.. " is a rig. Copy puts every animation this place uses into its AnimSaves, so you can edit them in Eclipse or the Animation Editor. Save makes a 3D file of it with its animations, for viewers and other 3D apps."
+	end
 	if not spinners[scanButton] then
 		scanButton.Label.Text = scope == "place" and "Scan place" or "Scan selection"
 	end

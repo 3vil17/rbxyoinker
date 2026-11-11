@@ -1053,7 +1053,10 @@ async function api(path, opts) {
   const r = await fetch(path, opts);
   const j = await r.json();
   if (r.status === 401 && j && j.bad_key) { location.reload(); return j; }
-  if (j && j.update_required) setTimeout(checkUpdate, 0);
+  if (j && j.update_required) {
+    const f = document.getElementById("forced");
+    if (!f || f.style.display !== "flex") setTimeout(checkUpdate, 0);
+  }
   return j;
 }
 function post(path, body) {
@@ -1339,7 +1342,8 @@ async function checkHealth() {
     " cookie" + (res.data.length > 1 ? "s" : "") + " stopped working (" + dead.map((a) => a.username ? "@" + esc(a.username) : "unknown").join(", ") + "). Replace " + (dead.length > 1 ? "them" : "it") + " in Settings.";
 }
 async function loadRecent() {
-  const res = await api("/api/history"); const rows = res.ok ? res.data.slice(0, 5) : [];
+  const res = await api("/api/history"); const seenIds = new Set();
+  const rows = res.ok ? res.data.filter((h) => !seenIds.has(h.id) && seenIds.add(h.id)).slice(0, 5) : [];
   $("#recent-card").style.display = rows.length ? "" : "none";
   const draw = () => { $("#recent-list").innerHTML = rows.map((h) =>
     '<div class="row">' + (histThumbs[h.id] ? '<img class="rthumb" loading="lazy" src="' + esc(histThumbs[h.id]) + '" alt="" />' : '<span class="rthumb"></span>') + '<div class="main"><div class="t">' + esc(h.name) + " <span>#" + h.id + "</span></div>" +
@@ -1357,7 +1361,7 @@ function rowActs(h) {
   return '<span class="racts">' +
     b("again", "refresh", "Download again", true, 'data-id="' + h.id + '"') +
     b("copy", "copy", "Copy as rbxassetid://", true, 'data-id="' + h.id + '"') +
-    b("insert", "box", model ? "Insert into Studio" : "Only models and places can go into Studio", model, 'data-path="' + path + '"') +
+    b("insert", "box", !model ? "Only models and animations can go into Studio" : /animation/i.test(h.type_label || "") ? "Put on the rig selected in Studio" : "Insert into Studio", model, 'data-path="' + path + '"') +
     b("folder", "folder", h.path ? "Show in folder" : "No file saved", !!h.path, 'data-path="' + path + '"') + "</span>";
 }
 function wireActs(root, after) {
@@ -1964,7 +1968,7 @@ async function loadAccounts(recheck) {
     const state = !a.alive ? '<span class="st error">dead</span>' : a.cooling ? '<span class="st working">cooling ' + a.cooling + "s</span>" : '<span class="st ok">ready</span>';
     return '<div class="row"><img class="avatar' + (a.alive ? "" : " off") + '" src="' + esc(a.avatar || "/logo.png") + '" alt="" /><div class="main">' +
       '<div class="t">' + (a.username ? "@" + esc(a.username) : "unknown") + (a.user_id ? " <span>#" + a.user_id + "</span>" : "") + "</div>" +
-      '<div class="s">' + a.uses + " requests · " + a.limited + " rate limits" + (a.last_error ? " · " + esc(a.last_error) : "") + "</div>" +
+      '<div class="s">' + a.uses + (a.uses === 1 ? " request · " : " requests · ") + a.limited + (a.limited === 1 ? " rate limit" : " rate limits") + (a.last_error ? " · " + esc(a.last_error) : "") + "</div>" +
       "</div>" + state + "</div>";
   }).join("");
   return res.data;
@@ -2251,12 +2255,15 @@ async function installUpdate(btn, noteEl) {
   btn.innerHTML = "Restart rbxyoinker to finish";
 }
 let updateInfo = null;
+const forcedNode = $("#forced");
 async function checkUpdate() {
   if (updating) return;
   const res = await api("/api/update").catch(() => null);
   if (!res || !res.ok || !res.data.available) return;
   updateInfo = res.data;
   if (res.data.important) {
+    if (!forcedNode.isConnected) document.body.append(forcedNode);
+    const shell = document.querySelector(".shell"); if (shell) shell.remove();
     $("#forced-ver").textContent = res.data.latest + " (you have v" + res.data.current + ")";
     $("#forced-notes").innerHTML = mdLite(res.data.notes || "This update fixes something important, so older versions can't keep running.");
     $("#forced-link").href = res.data.url;
