@@ -1467,7 +1467,7 @@ version = "0.3.5"
 dependencies = [
  "axum",
  "dirs",
- "getrandom 0.2.17",
+ "getrandom 0.4.3",
  "image",
  "keyring",
  "lz4_flex",
