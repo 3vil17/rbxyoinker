@@ -2,6 +2,7 @@
 use std::collections::HashMap;
 use crate::download;
 use crate::error::Error;
+use crate::platform;
 use crate::pool::Pool;
 use crate::roblox::Roblox;
 use crate::store;
@@ -228,7 +229,7 @@ async fn already_running() -> Option<String> {
 
 pub async fn run(updated: bool) -> std::io::Result<()> {
     if let Ok(exe) = std::env::current_exe() {
-        let old = exe.with_extension("old.exe");
+        let old = platform::sibling(&exe, "old");
         tokio::spawn(async move {
             for _ in 0..30 {
                 if !old.exists() || std::fs::remove_file(&old).is_ok() {
@@ -577,6 +578,8 @@ async fn get_settings() -> Json<Value> {
         "migrate_keep": s.migrate_keep,
         "migrate_stop_after": s.migrate_stop_after,
         "version": env!("CARGO_PKG_VERSION"),
+        "credential_store": platform::CREDENTIAL_STORE,
+        "os": std::env::consts::OS,
         "has_key": store::get_secret("api_key").is_some(),
         "cookie_count": store::load_cookies().len(),
     }))
@@ -1021,9 +1024,6 @@ async fn install_update(State(st): State<AppState>) -> Json<Value> {
         Err(e) => return fail(e.to_string()),
     };
     set_update(&st, "check", 0, 0);
-    if !bytes.starts_with(b"MZ") || bytes.len() < 100_000 {
-        return fail("the downloaded file doesn't look like a valid exe");
-    }
     let sig = match st.rb.download_file(sig_url, &|_, _| {}).await {
         Ok(b) => b,
         Err(e) => return fail(e.to_string()),
@@ -1031,13 +1031,17 @@ async fn install_update(State(st): State<AppState>) -> Json<Value> {
     if let Err(e) = crate::update::verify(&bytes, &sig, &latest.tag) {
         return fail(e.to_string());
     }
+    let bytes = match platform::unpack(bytes) {
+        Ok(b) => b,
+        Err(e) => return fail(e),
+    };
     let exe = match std::env::current_exe() {
         Ok(p) => p,
         Err(e) => return fail(e.to_string()),
     };
-    let fresh = exe.with_extension("new.exe");
-    let old = exe.with_extension("old.exe");
-    if let Err(e) = std::fs::write(&fresh, &bytes) {
+    let fresh = platform::sibling(&exe, "new");
+    let old = platform::sibling(&exe, "old");
+    if let Err(e) = std::fs::write(&fresh, &bytes).and_then(|_| platform::make_executable(&fresh)) {
         return fail(format!("couldn't save the update ({e}). Download it from GitHub instead"));
     }
     if !starts_ok(&fresh).await {
@@ -1058,7 +1062,7 @@ async fn install_update(State(st): State<AppState>) -> Json<Value> {
         let _ = std::fs::remove_file(&fresh);
         return fail(format!("couldn't replace the exe ({e}). Download it from GitHub instead"));
     }
-    if let Err(e) = std::process::Command::new(&exe).arg("--updated").spawn() {
+    if let Err(e) = platform::relaunch(&exe) {
         let _ = std::fs::rename(&exe, &fresh);
         let _ = std::fs::rename(&old, &exe);
         let _ = std::fs::remove_file(&fresh);
@@ -1303,7 +1307,7 @@ fn plugins_dir() -> Option<std::path::PathBuf> {
     if !saved.trim().is_empty() {
         return Some(std::path::PathBuf::from(saved));
     }
-    dirs::data_local_dir().map(|d| d.join("Roblox").join("Plugins")).filter(|d| d.is_dir())
+    platform::default_plugins_dir()
 }
 
 fn refresh_plugin() {
@@ -1355,7 +1359,7 @@ async fn plugin_install(Json(body): Json<InstallBody>) -> Json<Value> {
 
 async fn pick_plugins_dir() -> Json<Value> {
     let picked = tokio::task::spawn_blocking(|| {
-        unlock_foreground();
+        platform::unlock_foreground();
         rfd::FileDialog::new().set_title("Roblox Plugins folder").pick_folder()
     })
     .await
@@ -2237,69 +2241,10 @@ struct RevealBody {
     path: String,
 }
 
-fn unlock_foreground() {
-    use windows_sys::Win32::UI::Input::KeyboardAndMouse::{
-        SendInput, INPUT, INPUT_0, INPUT_MOUSE, MOUSEEVENTF_MOVE, MOUSEINPUT,
-    };
-    use windows_sys::Win32::UI::WindowsAndMessaging::{AllowSetForegroundWindow, ASFW_ANY};
-    let input = INPUT {
-        r#type: INPUT_MOUSE,
-        Anonymous: INPUT_0 {
-            mi: MOUSEINPUT { dx: 0, dy: 0, mouseData: 0, dwFlags: MOUSEEVENTF_MOVE, time: 0, dwExtraInfo: 0 },
-        },
-    };
-    unsafe {
-        SendInput(1, &input, std::mem::size_of::<INPUT>() as i32);
-        AllowSetForegroundWindow(ASFW_ANY);
-    }
-}
-
-fn wide(s: &str) -> Vec<u16> {
-    s.encode_utf16().chain(std::iter::once(0)).collect()
-}
-
-async fn raise_explorer(dir: std::path::PathBuf) {
-    use windows_sys::Win32::UI::WindowsAndMessaging::{
-        FindWindowExW, GetWindowTextW, IsIconic, SetForegroundWindow, ShowWindow, SW_RESTORE,
-    };
-    let full = dir.to_string_lossy().to_lowercase();
-    let name = dir.file_name().map(|n| n.to_string_lossy().to_lowercase()).unwrap_or_default();
-    let class = wide("CabinetWClass");
-    for _ in 0..20 {
-        tokio::time::sleep(std::time::Duration::from_millis(100)).await;
-        let mut found = None;
-        unsafe {
-            let mut h = FindWindowExW(std::ptr::null_mut(), std::ptr::null_mut(), class.as_ptr(), std::ptr::null());
-            while !h.is_null() {
-                let mut buf = [0u16; 512];
-                let n = GetWindowTextW(h, buf.as_mut_ptr(), buf.len() as i32);
-                let title = String::from_utf16_lossy(&buf[..n.max(0) as usize]).to_lowercase();
-                let base = title.split(" - ").next().unwrap_or("");
-                if base == name || base == full {
-                    found = Some(h as usize);
-                    break;
-                }
-                h = FindWindowExW(std::ptr::null_mut(), h, class.as_ptr(), std::ptr::null());
-            }
-        }
-        if let Some(h) = found {
-            unlock_foreground();
-            unsafe {
-                let h = h as windows_sys::Win32::Foundation::HWND;
-                if IsIconic(h) != 0 {
-                    ShowWindow(h, SW_RESTORE);
-                }
-                SetForegroundWindow(h);
-            }
-            return;
-        }
-    }
-}
-
 async fn pick_folder() -> Json<Value> {
     let start = store::load_settings().save_dir;
     let picked = tokio::task::spawn_blocking(move || {
-        unlock_foreground();
+        platform::unlock_foreground();
         rfd::FileDialog::new().set_title("Download folder").set_directory(&start).pick_folder()
     })
     .await
@@ -2321,18 +2266,14 @@ async fn open_folder() -> Json<Value> {
     if let Err(e) = std::fs::create_dir_all(&dir) {
         return fail(e.to_string());
     }
-    unlock_foreground();
-    match std::process::Command::new("explorer").arg(&dir).spawn() {
-        Ok(_) => {
-            tokio::spawn(raise_explorer(dir));
-            ok(Value::Null)
-        }
+    match platform::open_dir(&dir) {
+        Ok(_) => ok(Value::Null),
         Err(e) => fail(e.to_string()),
     }
 }
 
 async fn reveal(Json(body): Json<RevealBody>) -> Json<Value> {
-    let path = body.path.trim().replace('/', "\\");
+    let path = platform::normalize(body.path.trim());
     if path.is_empty() {
         return fail("no path");
     }
@@ -2340,12 +2281,7 @@ async fn reveal(Json(body): Json<RevealBody>) -> Json<Value> {
     let Some(dir) = p.parent().filter(|d| d.exists()).map(|d| d.to_path_buf()) else {
         return fail("that folder no longer exists");
     };
-    let arg = if p.exists() { format!("/select,{path}") } else { dir.to_string_lossy().to_string() };
-    unlock_foreground();
-    let res = std::process::Command::new("explorer").arg(arg).spawn();
-    if res.is_ok() {
-        tokio::spawn(raise_explorer(dir));
-    }
+    let res = if p.exists() { platform::reveal_file(p, &dir) } else { platform::open_dir(&dir) };
     match res {
         Ok(_) => ok(Value::Null),
         Err(e) => fail(e.to_string()),

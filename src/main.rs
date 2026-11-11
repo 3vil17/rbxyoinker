@@ -7,6 +7,7 @@ mod download;
 mod error;
 mod mainacct;
 mod migrate;
+mod platform;
 mod pool;
 mod resolver;
 mod roblox;

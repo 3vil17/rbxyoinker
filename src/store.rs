@@ -254,6 +254,7 @@ pub fn existing_download(id: i64) -> Option<HistoryEntry> {
 
 #[cfg(test)]
 mod tests {
+    #[cfg(windows)]
     #[test]
     fn config_stays_in_appdata_rbxdl() {
         let want = std::path::PathBuf::from(std::env::var("APPDATA").unwrap()).join("rbxdl");
