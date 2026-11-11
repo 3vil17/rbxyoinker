@@ -11,7 +11,7 @@ repository = "https://github.com/3vil17/rbxyoinker"
 winresource = "0.1"
 
 [dependencies]
-axum = "0.7"
+axum = "0.8"
 reqwest = { version = "0.13", features = ["json", "gzip", "multipart"] }
 tokio = { version = "1", features = ["rt-multi-thread", "macros", "net", "time"] }
 serde = { version = "1", features = ["derive"] }
