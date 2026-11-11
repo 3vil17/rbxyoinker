@@ -167,7 +167,8 @@
   .racts .btn.ic { padding: 5px 6px; font-size: 12px; }
   .btn.na, .btn.na:hover, .btn.na:active { opacity: 0.28; cursor: default; background: rgba(255, 255, 255, 0.05); border-color: rgba(255, 255, 255, 0.1); color: rgb(212, 212, 212); transform: none; }
   .btn.na:hover svg { transform: none; }
-  .row .btn.sis { padding: 4px 9px; flex-shrink: 0; white-space: nowrap; display: inline-flex; align-items: center; gap: 5px; }
+  .row .rlink { flex-shrink: 0; white-space: nowrap; font-size: 12px; margin-right: 4px; }
+  .row .rlink:hover { opacity: 1; text-decoration: underline; }
 
   input[type="text"], input[type="password"] {
     background: rgb(22, 22, 22); border: 1px solid rgba(255, 255, 255, 0.09); border-radius: 6px;
@@ -1281,10 +1282,15 @@ async function checkHealth() {
 async function loadRecent() {
   const res = await api("/api/history"); const rows = res.ok ? res.data.slice(0, 5) : [];
   $("#recent-card").style.display = rows.length ? "" : "none";
-  $("#recent-list").innerHTML = rows.map((h, i) =>
-    '<div class="row"><div class="main"><div class="t">' + esc(h.name) + " <span>#" + h.id + "</span></div>" +
+  const draw = () => { $("#recent-list").innerHTML = rows.map((h) =>
+    '<div class="row">' + (histThumbs[h.id] ? '<img class="rthumb" loading="lazy" src="' + esc(histThumbs[h.id]) + '" alt="" />' : '<span class="rthumb"></span>') + '<div class="main"><div class="t">' + esc(h.name) + " <span>#" + h.id + "</span></div>" +
     '<div class="s">' + esc(h.type_label) + " · " + esc(fmtWhen(h.when)) + "</div></div>" + rowActs(h) + "</div>").join("");
-  wireActs($("#recent-list"), () => { loadRecent(); if (histAll.length) loadHistory(); });
+  wireActs($("#recent-list"), () => { loadRecent(); if (histAll.length) loadHistory(); }); };
+  draw();
+  const ids = [...new Set(rows.map((h) => h.id))].filter((id) => !histThumbs[id]);
+  if (!ids.length) return;
+  const t = await post("/api/thumbs", { ids });
+  if (t.ok) { Object.assign(histThumbs, t.data); draw(); }
 }
 function rowActs(h) {
   const path = esc(h.path || ""), model = /\.rbxmx?$/i.test(h.path || "");
@@ -1759,7 +1765,7 @@ function renderMigrate() {
       (why ? '<div class="s err">' + esc(why) + "</div>"
         : '<div class="s">' + esc(it.type_label || "?") + (it.owner_name ? " · by " + esc(it.owner_name) : "") +
           (it.from_script ? ' · <span style="color:rgb(212,180,90)" title="' + esc(it.script) + '">in ' + esc(it.script.split(".").pop() || "a script") + "</span>" : "") + "</div>") +
-      "</div>" + (stLive ? '<button class="btn sis" data-show="' + it.id + '" title="Select every instance that uses this id">' + svg("crosshair") + "Select in Studio</button>" : "") +
+      "</div>" + (stLive ? '<a href="#" class="rlink" data-show="' + it.id + '" title="Select every instance that uses this id">Select in Studio</a>' : "") +
       (state ? '<span class="st ' + esc(state) + '">' + esc(state) + "</span>" : "") + "</div>";
   }).join("");
   $("#mg-start").disabled = j.running || !j.checked || !picked.length;
@@ -1813,7 +1819,8 @@ $("#mg-start").onclick = async () => {
 };
 $("#mg-cancel").onclick = () => post("/api/migrate/cancel", {});
 $("#mg-rows").addEventListener("click", async (e) => {
-  const b = e.target.closest("button[data-show]"); if (!b) return;
+  const b = e.target.closest("[data-show]"); if (!b) return;
+  e.preventDefault();
   const res = await post("/api/studio/show", { ids: [b.dataset.show] });
   if (!res.ok) { showNote($("#mg-note"), "err", esc(res.error)); return; }
   showNote($("#mg-note"), "info", res.data.live ? "Selecting it in Studio." : "Studio isn't open, it gets selected when the plugin connects.");
