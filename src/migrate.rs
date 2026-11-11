@@ -6,13 +6,14 @@ use crate::pool::Pool;
 use crate::resolver;
 use crate::roblox::{Creator, Roblox};
 use crate::store;
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
-#[derive(Serialize, Clone, Default)]
+#[derive(Serialize, Deserialize, Clone, Default)]
+#[serde(default)]
 pub struct Item {
     pub id: i64,
     pub name: String,
@@ -34,7 +35,8 @@ pub struct Item {
     pub reach_error: Option<String>,
 }
 
-#[derive(Serialize, Default)]
+#[derive(Serialize, Deserialize, Default)]
+#[serde(default)]
 pub struct Job {
     pub place: String,
     pub place_id: i64,
@@ -55,6 +57,35 @@ pub struct Job {
 }
 
 pub type Shared = Arc<Mutex<Job>>;
+
+fn saved_path() -> std::path::PathBuf {
+    store::config_dir().join("migrate_job.json")
+}
+
+pub fn save(j: &Job) {
+    if let Ok(bytes) = serde_json::to_vec(j) {
+        let _ = std::fs::write(saved_path(), bytes);
+    }
+}
+
+pub fn load() -> Shared {
+    let mut j: Job = std::fs::read(saved_path())
+        .ok()
+        .and_then(|b| serde_json::from_slice(&b).ok())
+        .unwrap_or_default();
+    j.running = false;
+    j.cancel = false;
+    j.checking = false;
+    for it in &mut j.items {
+        if matches!(it.state.as_str(), "queued" | "downloading" | "downloaded" | "uploading") {
+            it.state = "found".into();
+        }
+        if matches!(it.reach.as_str(), "queued" | "checking") {
+            it.reach.clear();
+        }
+    }
+    Arc::new(Mutex::new(j))
+}
 
 pub fn lock(job: &Shared) -> std::sync::MutexGuard<'_, Job> {
     job.lock().unwrap_or_else(|e| e.into_inner())
@@ -110,6 +141,7 @@ pub async fn check(rb: Roblox, pool: Pool, job: Shared) {
         j.defaults_skipped = before - j.items.len();
     }
     j.checked = true;
+    save(&j);
 }
 
 fn upload_kind(kind: &str, bytes: &[u8]) -> Option<(&'static str, &'static str, &'static str)> {
@@ -198,6 +230,7 @@ fn set_result(job: &Shared, i: usize, res: Result<i64>) {
             it.error = Some(e.to_string());
         }
     }
+    save(&j);
 }
 
 fn keep_copy(settings: &store::Settings, place: &str, item: &Item, bytes: &[u8]) -> std::io::Result<()> {
@@ -287,6 +320,7 @@ pub async fn dry_run(rb: Roblox, pool: Pool, job: Shared, cookie: String, to_key
     let mut j = lock(&job);
     j.running = false;
     j.checking = false;
+    save(&j);
     j.cancel = false;
 }
 
@@ -390,4 +424,5 @@ pub async fn run(rb: Roblox, pool: Pool, job: Shared, cookie: String, to: Creato
     let mut j = lock(&job);
     j.running = false;
     j.cancel = false;
+    save(&j);
 }
