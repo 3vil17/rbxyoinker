@@ -1289,23 +1289,41 @@ const FAIL_HINT = {
   "Network": "couldn't reach Roblox",
   "Other": "open a row's Details to see why",
 };
-function reportUrl(msg) {
+let reportAccounts = null;
+function reportUrl(msg, ctx) {
   const version = $("#app-version").textContent;
+  const c = ctx || {};
+  const codes = [...new Set(String(msg || "").match(/\b[45]\d\d\b/g) || [])];
+  const os = /mac/i.test(navigator.platform) ? "macOS" : /win/i.test(navigator.platform) ? "Windows" : navigator.platform || "unknown";
+  const row = (k, v) => (v === undefined || v === null || v === "" ? null : k + ": " + v);
   const body = [
-    "App version: " + version,
-    "Problem: " + failReason(msg),
-    "Message: " + friendly(msg),
+    row("App version", version),
+    row("OS", os),
+    row("Accounts added", reportAccounts),
+    row("Where", c.where),
+    "",
+    row("Asset id", c.id),
+    row("Asset type", c.type),
+    row("Public or private", c.access),
+    row("Creator", c.creator),
+    row("Version asked for", c.version),
+    row("Game box filled in", c.where === "Download" ? (c.game ? "yes" : "no") : null),
+    "",
+    row("Problem", failReason(msg)),
+    row("Message", friendly(msg)),
+    row("Roblox status codes", codes.join(", ") || "none"),
     "",
     "What were you trying to do?",
     "",
     "",
-    "This is public. Details can show your account and game names, so only paste what you're happy to share. Never paste a cookie.",
-  ].join("\n");
-  return "https://github.com/3vil17/rbxyoinker/issues/new?title=" + encodeURIComponent(failReason(msg) + " on " + version) + "&body=" + encodeURIComponent(body);
+    "This is public. The asset id and type above are public info. Account and game names from Details are left out on purpose, add them only if you're happy to share. Never paste a cookie.",
+  ].filter((l) => l !== null).join("\n");
+  const what = c.id ? " for " + (c.type ? c.type + " " : "") + c.id : "";
+  return "https://github.com/3vil17/rbxyoinker/issues/new?title=" + encodeURIComponent(failReason(msg) + what + " on " + version) + "&body=" + encodeURIComponent(body);
 }
-function errHtml(msg) {
+function errHtml(msg, ctx) {
   const lines = String(msg || "").split(" | ").map((l) => '<span class="line">' + esc(l) + "</span>").join("");
-  return esc(friendly(msg)) + '<details class="nerd"><summary>Details</summary><div class="raw">' + lines + '</div><a class="report" href="' + esc(reportUrl(msg)) + '" target="_blank">Report a problem</a></details>';
+  return esc(friendly(msg)) + '<details class="nerd"><summary>Details</summary><div class="raw">' + lines + '</div><a class="report" href="' + esc(reportUrl(msg, ctx)) + '" target="_blank">Report a problem</a></details>';
 }
 
 function store(k, v) { try { if (v === undefined) return localStorage.getItem("ryk_" + k); localStorage.setItem("ryk_" + k, v); } catch (e) { return null; } }
@@ -1439,7 +1457,10 @@ async function doDownload() {
   clearInterval(live);
   btn.disabled = false;
   setBtn(btn, "download", "Download");
-  if (!res.ok) { showNote($("#dl-note"), "err", errHtml(res.error)); return; }
+  if (!res.ok) {
+    showNote($("#dl-note"), "err", errHtml(res.error, { where: "Download", id: current.id, type: current.type_label, access: current.access, creator: current.creator_type, version: ver > 0 ? ver : null, game: !!$("#place-input").value.trim() }));
+    return;
+  }
   const d = res.data;
   showNote($("#dl-note"), "ok",
     "Saved <b>" + esc(d.name) + "</b> via <b>" + esc(d.method) + "</b><br><code>" + esc(d.path) + "</code>" +
@@ -1997,6 +2018,7 @@ let preview = null, previewTimer = null, previewSeq = 0;
 const typeOff = new Set();
 let accessPick = "Both";
 const accessOf = {};
+const typeOf = {};
 const picked = (x) => !typeOff.has(x.type) && (accessPick === "Both" || x.access === accessPick);
 document.querySelectorAll("#access-seg button").forEach((b) => {
   b.onclick = () => { accessPick = b.dataset.a; renderChips(); };
@@ -2045,7 +2067,7 @@ async function loadPreview() {
   preview = res.data.filter((x) => !x.default);
   const left = res.data.length - preview.length;
   if (left) $("#preview-state").textContent = left + (left === 1 ? " Roblox default" : " Roblox defaults") + " left out";
-  preview.forEach((x) => { if (x.thumb) thumbs[x.id] = x.thumb; accessOf[x.id] = x.access; });
+  preview.forEach((x) => { if (x.thumb) thumbs[x.id] = x.thumb; accessOf[x.id] = x.access; typeOf[x.id] = x.type; });
   renderChips();
   return preview;
 }
@@ -2083,7 +2105,7 @@ function renderBulk(d) {
   if ($("#bulk-rows").dataset.key !== rowsKey) $("#bulk-rows").dataset.key = rowsKey, $("#bulk-rows").innerHTML = it.map((x, i) =>
     '<div class="' + rowClass(bulkSeen, x.id, it.length) + '">' + (thumbs[x.id] ? '<img class="rthumb" loading="lazy" src="' + esc(thumbs[x.id]) + '" alt="" />' : '<span class="rthumb"></span>') + '<div class="main"><div class="t">' + esc(x.name || "asset") + " <span>#" + x.id + "</span>" +
     (accessOf[x.id] ? '<span class="tag' + (accessOf[x.id] === "Public" ? " pub" : "") + '">' + accessOf[x.id] + "</span>" : "") + "</div>" +
-    (x.error ? '<div class="s err">' + errHtml(x.error) + "</div>" : x.method ? '<div class="s">' + esc(x.method) + "</div>" : "") +
+    (x.error ? '<div class="s err">' + errHtml(x.error, { where: "Bulk", id: x.id, type: typeOf[x.id], access: accessOf[x.id] }) + "</div>" : x.method ? '<div class="s">' + esc(x.method) + "</div>" : "") +
     '</div><span class="st ' + x.state + '">' + x.state + "</span>" +
     '<button class="btn ic' + (x.path ? "" : " na") + '" data-p="' + i + '" title="' + (x.path ? "Show in folder" : "Not saved yet") + '">' + svg("folder") + "</button></div>").join("");
   $("#bulk-rows").querySelectorAll("button[data-p]:not(.na)").forEach((b) => { b.onclick = () => post("/api/reveal", { path: it[b.dataset.p].path }); });
@@ -2336,6 +2358,7 @@ loadRecent();
 api("/api/settings").then((res) => {
   if (!res.ok) return;
   $("#app-version").textContent = "v" + res.data.version;
+  reportAccounts = res.data.cookie_count;
   document.querySelectorAll(".credstore").forEach(el => el.textContent = res.data.credential_store || el.textContent);
   if (res.data.os === "macos") $("#pl-dir").placeholder = "/Users/you/Documents/Roblox/Plugins";
   if (!res.data.accepted_terms) $("#terms").style.display = "flex";
