@@ -237,6 +237,7 @@ pub async fn run(updated: bool) -> std::io::Result<()> {
         .route("/api/studio/insert", post(studio_insert))
         .route("/api/studio/file", get(studio_file))
         .route("/api/studio/bulk", post(studio_bulk))
+        .route("/api/studio/anims", post(studio_anims))
         .route("/api/studio/inbox", get(studio_inbox))
         .route("/api/migrate/job", get(migrate_job))
         .route("/api/migrate/targets", get(migrate_targets))
@@ -714,6 +715,7 @@ const KEY_OPEN: &[&str] = &[
     "/api/studio/unpair",
     "/api/studio/file",
     "/api/studio/bulk",
+    "/api/studio/anims",
 ];
 
 fn new_key() -> String {
@@ -1388,6 +1390,9 @@ async fn studio_job(State(st): State<AppState>, headers: axum::http::HeaderMap) 
     if !inserts.is_empty() {
         job["insert"] = json!(inserts.iter().map(|(n, name)| json!({ "n": n, "name": name })).collect::<Vec<_>>());
     }
+    if let Some(anims) = p.take_anims() {
+        job["anims"] = json!(anims);
+    }
     ok(job).into_response()
 }
 
@@ -1418,6 +1423,9 @@ async fn studio_ping(
     let inserts = std::mem::take(&mut p.inserts);
     if !inserts.is_empty() {
         pong["insert"] = json!(inserts.iter().map(|(n, name)| json!({ "n": n, "name": name })).collect::<Vec<_>>());
+    }
+    if let Some(anims) = p.take_anims() {
+        pong["anims"] = json!(anims);
     }
     ok(pong).into_response()
 }
@@ -1479,15 +1487,65 @@ async fn studio_insert(State(st): State<AppState>, Json(body): Json<InsertBody>)
         return fail("Studio isn't paired, connect the plugin first");
     }
     let live = p.last_seen.is_some_and(|t| t.elapsed() < std::time::Duration::from_secs(15));
-    p.next_file += 1;
-    let n = p.next_file;
     let name = file.file_stem().and_then(|s| s.to_str()).unwrap_or("model").to_string();
-    p.files.push((n, file));
-    if p.files.len() > 20 {
-        p.files.remove(0);
-    }
-    p.inserts.push((n, name));
+    p.queue_file(file, name);
     ok(json!({ "live": live }))
+}
+
+#[derive(Deserialize)]
+struct StudioAnims {
+    ids: Vec<String>,
+    #[serde(default)]
+    place_id: Option<i64>,
+}
+
+async fn studio_anims(
+    State(st): State<AppState>,
+    headers: axum::http::HeaderMap,
+    Json(body): Json<StudioAnims>,
+) -> axum::response::Response {
+    let ids = {
+        let mut p = crate::studio::lock(&st.studio);
+        if !p.check(studio_token(&headers).as_deref()) {
+            return unpaired();
+        }
+        if p.anims.running {
+            return fail("already yoinking animations, wait for that to finish").into_response();
+        }
+        let mut ids: Vec<i64> = Vec::new();
+        for raw in &body.ids {
+            if let Some(id) = raw.trim().parse::<i64>().ok().filter(|id| *id > 0) {
+                if !ids.contains(&id) {
+                    ids.push(id);
+                }
+            }
+        }
+        if ids.is_empty() {
+            return fail("no animation ids in that list").into_response();
+        }
+        p.anims = crate::studio::AnimRun { running: true, total: ids.len(), done: 0, failed: 0 };
+        ids
+    };
+    let count = ids.len();
+    tokio::spawn(yoink_anims(st.clone(), ids, body.place_id.filter(|p| *p > 0)));
+    ok(json!({ "count": count })).into_response()
+}
+
+async fn yoink_anims(st: AppState, ids: Vec<i64>, place: Option<i64>) {
+    let settings = store::load_settings();
+    let api_key = store::get_secret("api_key");
+    for id in ids {
+        let res = download::fetch_and_save(&st.rb, api_key.as_deref(), &st.pool, id, None, place, &settings).await;
+        st.rb.clear_progress(id);
+        let saved = res.ok().and_then(|info| insertable(&info.path).map(|file| (file, info.name)));
+        let mut p = crate::studio::lock(&st.studio);
+        p.anims.done += 1;
+        match saved {
+            Some((file, name)) => p.queue_file(file, name),
+            None => p.anims.failed += 1,
+        }
+    }
+    crate::studio::lock(&st.studio).anims.running = false;
 }
 
 #[derive(Deserialize)]
