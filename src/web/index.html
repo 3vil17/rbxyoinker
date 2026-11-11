@@ -167,7 +167,8 @@
   .racts .btn.ic { padding: 5px 6px; font-size: 12px; }
   .btn.na, .btn.na:hover, .btn.na:active { opacity: 0.28; cursor: default; background: rgba(255, 255, 255, 0.05); border-color: rgba(255, 255, 255, 0.1); color: rgb(212, 212, 212); transform: none; }
   .btn.na:hover svg { transform: none; }
-  .row .btn.sis { padding: 4px 9px; flex-shrink: 0; white-space: nowrap; display: inline-flex; align-items: center; gap: 5px; }
+  .row .rlink { flex-shrink: 0; white-space: nowrap; font-size: 12px; margin-right: 4px; }
+  .row .rlink:hover { opacity: 1; text-decoration: underline; }
 
   input[type="text"], input[type="password"] {
     background: rgb(22, 22, 22); border: 1px solid rgba(255, 255, 255, 0.09); border-radius: 6px;
@@ -366,6 +367,14 @@
   .cols { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; align-items: stretch; }
 
   .searchbox { position: relative; display: flex; align-items: center; gap: 8px; }
+  #tab-download > .card:first-child.drop { border-color: rgba(59,234,87,0.6); background: rgba(59,234,87,0.04); }
+  .quick { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; }
+  .qk { appearance: none; text-align: left; cursor: pointer; display: flex; flex-direction: column; gap: 3px; font-family: var(--font-sans); color: inherit; transition: border-color 0.2s, background 0.2s; }
+  .qk:hover { border-color: rgba(255,255,255,0.18); background: rgba(255,255,255,0.03); }
+  .qk svg { width: 16px; height: 16px; stroke: rgb(170,170,170); fill: none; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; margin-bottom: 6px; }
+  .qk b { font-size: 0.85rem; font-weight: 600; color: rgb(224,224,224); }
+  .qk span { font-size: 0.72rem; color: rgb(136,136,136); }
+  @media (max-width: 720px) { .quick { grid-template-columns: minmax(0, 1fr); } }
   .searchbox > svg { position: absolute; left: 13px; width: 16px; height: 16px; fill: none; stroke: rgb(110,110,110); stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; pointer-events: none; transition: stroke 0.2s; }
   .searchbox:focus-within > svg { stroke: rgb(212,212,212); }
   .searchbox input { flex: 1 1 0; min-width: 0; padding: 11px 12px 11px 38px; font-size: 14px; }
@@ -571,7 +580,7 @@
         <div class="card">
           <div class="searchbox">
             <svg viewBox="0 0 24 24"><path d="M10 13a5 5 0 0 0 7.5.5l3-3a5 5 0 0 0-7-7l-1.7 1.7"/><path d="M14 11a5 5 0 0 0-7.5-.5l-3 3a5 5 0 0 0 7 7l1.7-1.7"/></svg>
-            <input id="asset-input" type="text" placeholder="Asset id or link" autocomplete="off" spellcheck="false" />
+            <input id="asset-input" type="text" placeholder="Asset id or link, or drop a file here" autocomplete="off" spellcheck="false" />
             <button class="btn main" id="fetch-btn" data-i="search">Fetch</button>
           </div>
           <div class="skel" id="r-skel"><i class="a"></i><div><i class="b"></i><i class="c"></i></div></div>
@@ -603,19 +612,17 @@
           <div class="note" id="dl-note"></div>
         </div>
 
+        <div class="quick">
+          <button class="card qk" data-q="place"><i data-i="layers"></i><b>Whole place</b><span>.rbxl or .rbxm, every asset into Bulk</span></button>
+          <button class="card qk" data-q="convert"><i data-i="box"></i><b>Convert</b><span>.mesh into .obj or .glb</span></button>
+          <button class="card qk" data-q="move"><i data-i="move"></i><b>Move assets</b><span>to your account or a group</span></button>
+        </div>
+
         <div class="card" id="recent-card" style="display:none">
           <h2 class="sect"><i data-i="history"></i>Recent<a href="#" class="sect-link" id="recent-open">Open folder</a></h2>
           <div class="rows" id="recent-list" style="margin-top:0"></div>
         </div>
 
-        <div class="card usage">
-          <ul>
-            <li><strong>Ctrl+V</strong> anywhere on this tab pastes and fetches.</li>
-            <li>Private assets get tried through games from the creator, the group's owner and the groups they're in.</li>
-            <li>Set a <strong>version</strong> to grab an older upload of the asset.</li>
-            <li>Bundle and outfit links open up in <strong>Bulk</strong>.</li>
-          </ul>
-        </div>
       </section>
 
       <section id="tab-bulk" class="tab" style="display:none">
@@ -642,6 +649,8 @@
           <div class="fbtns">
             <button class="btn main" id="bulk-start" data-i="download">Download all</button>
             <button class="btn" id="bulk-import" data-i="file">Import place / model</button>
+            <button class="btn" id="bulk-pause" data-i="pause" style="display:none">Pause</button>
+            <button class="btn main" id="bulk-resume" data-i="play" style="display:none">Resume</button>
             <button class="btn" id="bulk-cancel" data-i="square" disabled>Cancel</button>
           </div>
           <div class="fbtns" id="bulk-after" style="display:none">
@@ -804,7 +813,7 @@
           <div class="fbtns">
             <button class="btn" id="mg-check" data-i="search">Check first</button>
             <button class="btn main" id="mg-start" data-i="move">Move assets</button>
-            <button class="btn" id="mg-cancel" data-i="square" disabled>Cancel</button>
+            <button class="btn" id="mg-cancel" data-i="pause" disabled>Pause</button>
             <button class="btn" id="mg-copy" data-i="copy" disabled>Copy mapping</button>
             <button class="btn" id="mg-report" data-i="file" disabled>Save report</button>
           </div>
@@ -1186,6 +1195,7 @@ document.addEventListener("click", (e) => {
 });
 // Lucide icons (ISC license), inlined
 const ICONS = {
+  pause: '<rect x="14" y="4" width="4" height="16" rx="1"/><rect x="6" y="4" width="4" height="16" rx="1"/>',
   folderOpen: '<path d="m6 14 1.5-2.9A2 2 0 0 1 9.24 10H20a2 2 0 0 1 1.94 2.5l-1.54 6a2 2 0 0 1-1.95 1.5H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h3.9a2 2 0 0 1 1.69.9l.81 1.2a2 2 0 0 0 1.67.9H18a2 2 0 0 1 2 2v2"/>',
   box: '<path d="M21 8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16Z"/><path d="m3.3 7 8.7 5 8.7-5"/><path d="M12 22V12"/>',
   download: '<path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" x2="12" y1="15" y2="3"/>',
@@ -1233,7 +1243,7 @@ function friendly(msg) {
   if (m.includes("404")) return "This asset doesn't exist or was deleted.";
   if (m.includes("401")) return "One of your cookies expired. Replace it in Settings.";
   if (m.includes("not authorized") || m.includes("403") || m.includes("409"))
-    return "This asset is private and none of your accounts can get it. It didn't work in any public game from its creator, the group's owner or their groups.";
+    return "This asset is private and none of your accounts can get it. It didn't work in any public game from its creator, the group's owner or their groups. If you know a game that uses it, put that game's link in the box below and try again.";
   if (m.includes("network error")) return "Couldn't reach Roblox. Check your internet connection.";
   return "Couldn't download this asset.";
 }
@@ -1314,10 +1324,15 @@ async function checkHealth() {
 async function loadRecent() {
   const res = await api("/api/history"); const rows = res.ok ? res.data.slice(0, 5) : [];
   $("#recent-card").style.display = rows.length ? "" : "none";
-  $("#recent-list").innerHTML = rows.map((h, i) =>
-    '<div class="row"><div class="main"><div class="t">' + esc(h.name) + " <span>#" + h.id + "</span></div>" +
+  const draw = () => { $("#recent-list").innerHTML = rows.map((h) =>
+    '<div class="row">' + (histThumbs[h.id] ? '<img class="rthumb" loading="lazy" src="' + esc(histThumbs[h.id]) + '" alt="" />' : '<span class="rthumb"></span>') + '<div class="main"><div class="t">' + esc(h.name) + " <span>#" + h.id + "</span></div>" +
     '<div class="s">' + esc(h.type_label) + " · " + esc(fmtWhen(h.when)) + "</div></div>" + rowActs(h) + "</div>").join("");
-  wireActs($("#recent-list"), () => { loadRecent(); if (histAll.length) loadHistory(); });
+  wireActs($("#recent-list"), () => { loadRecent(); if (histAll.length) loadHistory(); }); };
+  draw();
+  const ids = [...new Set(rows.map((h) => h.id))].filter((id) => !histThumbs[id]);
+  if (!ids.length) return;
+  const t = await post("/api/thumbs", { ids });
+  if (t.ok) { Object.assign(histThumbs, t.data); draw(); }
 }
 function rowActs(h) {
   const path = esc(h.path || ""), model = /\.rbxmx?$/i.test(h.path || "");
@@ -1795,7 +1810,7 @@ function renderMigrate() {
       (why ? '<div class="s err">' + esc(why) + "</div>"
         : '<div class="s">' + esc(it.type_label || "?") + (it.owner_name ? " · by " + esc(it.owner_name) : "") +
           (it.from_script ? ' · <span style="color:rgb(212,180,90)" title="' + esc(it.script) + '">in ' + esc(it.script.split(".").pop() || "a script") + "</span>" : "") + "</div>") +
-      "</div>" + (stLive ? '<button class="btn sis" data-show="' + it.id + '" title="Select every instance that uses this id">' + svg("crosshair") + "Select in Studio</button>" : "") +
+      "</div>" + (stLive ? '<a href="#" class="rlink" data-show="' + it.id + '" title="Select every instance that uses this id">Select in Studio</a>' : "") +
       (state ? '<span class="st ' + esc(state) + '">' + esc(state) + "</span>" : "") + "</div>";
   }).join("");
   $("#mg-start").disabled = j.running || !j.checked || !picked.length;
@@ -1803,7 +1818,10 @@ function renderMigrate() {
   $("#mg-report").disabled = j.running || !moved.length;
   $("#mg-bar").parentNode.classList.toggle("run", !!j.running);
   if (j.scout) showNote($("#mg-note"), "info", esc(j.scout));
-  setBtn($("#mg-start"), "move", picked.length ? "Move " + picked.length + " asset" + (picked.length > 1 ? "s" : "") : "Move assets");
+  const left = picked.filter((it) => it.state !== "ok").length;
+  setBtn($("#mg-start"), j.running || !moved.length || !left || left === picked.length ? "move" : "play",
+    !j.running && moved.length && left && left < picked.length ? "Resume, " + left + " left"
+      : picked.length ? "Move " + picked.length + " asset" + (picked.length > 1 ? "s" : "") : "Move assets");
   $("#mg-cancel").disabled = !j.running;
   $("#mg-copy").disabled = !c.ok;
   $("#mg-bulk").disabled = !!j.running;
@@ -1840,6 +1858,7 @@ $("#mg-start").onclick = async () => {
     $("#mg-main").scrollIntoView({ block: "nearest", behavior: "smooth" });
     return;
   }
+  askNotify();
   const ids = mgPicked().map((it) => String(it.id));
   const res = await post("/api/migrate/start", { user_id: a.user_id, to: $("#mg-to").value, ids, mode: mgMode });
   if (!res.ok) { showNote($("#mg-note"), "err", esc(res.error)); return; }
@@ -1849,7 +1868,8 @@ $("#mg-start").onclick = async () => {
 };
 $("#mg-cancel").onclick = () => post("/api/migrate/cancel", {});
 $("#mg-rows").addEventListener("click", async (e) => {
-  const b = e.target.closest("button[data-show]"); if (!b) return;
+  const b = e.target.closest("[data-show]"); if (!b) return;
+  e.preventDefault();
   const res = await post("/api/studio/show", { ids: [b.dataset.show] });
   if (!res.ok) { showNote($("#mg-note"), "err", esc(res.error)); return; }
   showNote($("#mg-note"), "info", res.data.live ? "Selecting it in Studio." : "Studio isn't open, it gets selected when the plugin connects.");
@@ -1994,7 +2014,7 @@ function renderChips() {
 }
 let bulkTimer = null;
 function renderBulk(d) {
-  const it = d.items, c = { ok: 0, have: 0, error: 0, skipped: 0, waiting: 0 };
+  const it = d.items, c = { ok: 0, have: 0, error: 0, skipped: 0, waiting: 0, paused: 0 };
   it.forEach((x) => { if (c[x.state] != null) c[x.state]++; });
   const done = c.ok + c.have + c.error + c.skipped;
   $("#bulk-bar").style.width = (it.length ? (done / it.length) * 100 : 0) + "%";
@@ -2019,6 +2039,9 @@ function renderBulk(d) {
     (r === "Moderated" || r === "Not found" ? "" : '<button class="btn" data-g="' + esc(r) + '">' + svg("refresh") + " Retry</button>") + "</div>").join("");
   $("#fail-groups").querySelectorAll("button[data-g]").forEach((b) => { b.onclick = () => retryBulk(groups[b.dataset.g].map(String)); });
   $("#bulk-start").disabled = d.running; $("#bulk-cancel").disabled = !d.running;
+  $("#bulk-pause").style.display = d.running ? "" : "none"; $("#bulk-pause").disabled = !!d.pausing;
+  $("#bulk-resume").style.display = !d.running && c.paused ? "" : "none";
+  if (!d.running && c.paused) setBtn($("#bulk-resume"), "play", "Resume " + c.paused + " left");
   $("#bulk-after").style.display = !d.running && it.length ? "flex" : "none";
   $("#bulk-retry").disabled = !(c.error + c.skipped);
   $("#bulk-zip").disabled = !(c.ok + c.have);
@@ -2056,6 +2079,7 @@ $("#bulk-start").onclick = async () => {
   const p = preview || await loadPreview();
   const ids = p ? p.filter(picked).map((x) => x.id) : splitIds($("#bulk-input").value);
   if (!ids.length) { showNote($("#bulk-note"), "err", "Nothing matches the current filters."); return; }
+  askNotify();
   const res = await post("/api/bulk", { ids, skip_existing: $("#skip-existing").checked, place: $("#bulk-place").value.trim() || null });
   if (!res.ok) { showNote($("#bulk-note"), "err", esc(res.error)); return; }
   showNote($("#bulk-note"), "info", "Started " + res.data.total + " assets with " + res.data.workers + " workers.");
@@ -2100,6 +2124,14 @@ async function importFile(f) {
     (total > 1000 ? " That's over 1000, run the first 1000 then paste the rest in a second batch." : ""));
 }
 $("#bulk-cancel").onclick = () => post("/api/bulk/cancel", {});
+$("#bulk-pause").onclick = () => { post("/api/bulk/pause", {}); showNote($("#bulk-note"), "info", "Pausing, the ones already downloading finish first."); };
+$("#bulk-resume").onclick = async () => {
+  askNotify();
+  const res = await post("/api/bulk/resume", {});
+  if (!res.ok) { showNote($("#bulk-note"), "err", esc(res.error)); return; }
+  showNote($("#bulk-note"), "info", "Resuming " + res.data.total + " assets.");
+  startPolling();
+};
 pollBulk().then(() => { if ($("#bulk-cancel").disabled === false) startPolling(); });
 $("#skip-defaults").onchange = async () => {
   const res = await post("/api/settings", { skip_defaults: $("#skip-defaults").checked });
@@ -2274,13 +2306,52 @@ async function showChanges(all) {
 }
 $("#changes-ok").onclick = () => { $("#changes").style.display = "none"; post("/api/changelog/seen", {}); };
 $("#changes-link").onclick = (e) => { e.preventDefault(); showChanges(true); };
-document.addEventListener("paste", (e) => {
-  if ($("#tab-download").style.display === "none" || e.target.closest("input, textarea")) return;
-  const text = (e.clipboardData && e.clipboardData.getData("text") || "").trim();
-  if (!/\d/.test(text)) return;
-  e.preventDefault();
+function goTab(t) { const b = document.querySelector('nav button[data-tab="' + t + '"]'); if (b) b.click(); }
+function takeText(text) {
+  text = String(text || "").trim();
+  if (!/\d/.test(text)) return false;
+  const ids = [...new Set(splitIds(text))];
+  if (ids.length > 1 && !/(bundles|outfits?)[/=]/i.test(text)) {
+    const box = $("#bulk-input"), sep = String.fromCharCode(10);
+    const have = new Set(splitIds(box.value));
+    const fresh = ids.filter((id) => !have.has(id));
+    box.value = (box.value.trim() ? box.value.trim() + sep : "") + fresh.join(sep);
+    goTab("bulk");
+    box.dispatchEvent(new Event("input"));
+    showNote($("#bulk-note"), "info", "Added " + fresh.length + " ids from the clipboard.");
+    return true;
+  }
+  goTab("download");
   $("#asset-input").value = text;
   doFetch();
+  return true;
+}
+function takeFile(f) {
+  if (/\.rbx[lm]x?$/i.test(f.name)) { goTab("bulk"); importFile(f); return true; }
+  if (/\.mesh$/i.test(f.name)) { goTab("convert"); convertFiles([f]); return true; }
+  toast("err", "rbxyoinker takes .rbxl, .rbxm and .mesh files.");
+  return false;
+}
+document.addEventListener("paste", (e) => {
+  if (e.target.closest("input, textarea") || $("#ask").style.display === "flex") return;
+  const f = e.clipboardData && e.clipboardData.files && e.clipboardData.files[0];
+  if (f) { e.preventDefault(); takeFile(f); return; }
+  if (takeText(e.clipboardData && e.clipboardData.getData("text"))) e.preventDefault();
+});
+const dlCard = $("#tab-download > .card");
+["dragenter", "dragover"].forEach((ev) => dlCard.addEventListener(ev, (e) => { e.preventDefault(); dlCard.classList.add("drop"); }));
+["dragleave", "drop"].forEach((ev) => dlCard.addEventListener(ev, (e) => { e.preventDefault(); if (ev === "drop" || !dlCard.contains(e.relatedTarget)) dlCard.classList.remove("drop"); }));
+dlCard.addEventListener("drop", (e) => {
+  const f = e.dataTransfer.files[0];
+  if (f) { takeFile(f); return; }
+  takeText(e.dataTransfer.getData("text/uri-list") || e.dataTransfer.getData("text"));
+});
+document.querySelectorAll(".qk").forEach((q) => {
+  q.onclick = () => {
+    if (q.dataset.q === "place") { goTab("bulk"); $("#scan-file").click(); }
+    else if (q.dataset.q === "convert") { goTab("convert"); $("#cv-file").click(); }
+    else goTab("migrate");
+  };
 });
 document.addEventListener("keydown", (e) => {
   if (e.key !== "Escape") return;
@@ -2307,12 +2378,24 @@ function fmtLeft(s) {
   if (s < 3600) return Math.round(s / 60) + "m left";
   return Math.floor(s / 3600) + "h " + Math.round((s % 3600) / 60) + "m left";
 }
+function askNotify() {
+  try { if (window.Notification && Notification.permission === "default") Notification.requestPermission(); } catch (e) {}
+}
+function jobDone(title, text) {
+  toast("ok", esc(title) + ". " + esc(text));
+  try { if (document.hidden && window.Notification && Notification.permission === "granted") new Notification(title, { body: text, icon: "/logo.png" }); } catch (e) {}
+}
+let lastJobs = { bulk: null, migrate: null };
 async function pollJobs() {
   const res = await api("/api/jobs").catch(() => null);
   const el = $("#side-jobs");
   if (!res || !res.ok) return;
   const rows = [];
   const b = res.data.bulk, m = res.data.migrate;
+  const pb = lastJobs.bulk, pm = lastJobs.migrate;
+  if (pb && !b) jobDone("Bulk finished", pb.total + " assets" + (pb.failed ? ", " + pb.failed + " failed" : ""));
+  if (pm && !m) jobDone(pm.checking ? "Check finished" : "Migrate finished", (pm.place || "Studio") + (pm.failed ? ", " + pm.failed + " failed" : ""));
+  lastJobs = { bulk: b, migrate: m };
   if (b) rows.push({ tab: "bulk", title: "Bulk", sub: b.failed ? b.failed + " failed" : "Downloading", j: b });
   if (m) rows.push({ tab: "migrate", title: m.checking ? "Checking" : "Migrate", sub: (m.place || "Studio") + (m.failed ? " · " + m.failed + " failed" : ""), j: m });
   const key = rows.map((r) => r.tab).join(",");

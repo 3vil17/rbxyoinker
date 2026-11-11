@@ -118,6 +118,8 @@ struct AppState {
 struct Bulk {
     running: bool,
     cancel: bool,
+    pause: bool,
+    saved_at: Option<std::time::Instant>,
     skip_existing: bool,
     prefetched: usize,
     place: Option<i64>,
@@ -125,6 +127,82 @@ struct Bulk {
     items: Vec<BulkItem>,
     started: Option<std::time::Instant>,
     base: usize,
+}
+
+#[derive(Serialize, Deserialize)]
+struct SavedBulk {
+    skip_existing: bool,
+    place: Option<i64>,
+    items: Vec<SavedItem>,
+}
+
+#[derive(Serialize, Deserialize)]
+struct SavedItem {
+    id: i64,
+    state: String,
+    name: Option<String>,
+    method: Option<String>,
+    account: Option<String>,
+    path: Option<String>,
+    error: Option<String>,
+}
+
+const BULK_STATES: &[&str] = &["ok", "error", "have", "skipped", "paused"];
+
+fn bulk_file() -> std::path::PathBuf {
+    store::config_dir().join("bulk_job.json")
+}
+
+fn save_bulk(b: &mut Bulk) {
+    b.saved_at = Some(std::time::Instant::now());
+    if b.items.is_empty() {
+        let _ = std::fs::remove_file(bulk_file());
+        return;
+    }
+    let saved = SavedBulk {
+        skip_existing: b.skip_existing,
+        place: b.place,
+        items: b
+            .items
+            .iter()
+            .map(|it| SavedItem {
+                id: it.id,
+                state: it.state.to_string(),
+                name: it.name.clone(),
+                method: it.method.clone(),
+                account: it.account.clone(),
+                path: it.path.clone(),
+                error: it.error.clone(),
+            })
+            .collect(),
+    };
+    if let Ok(bytes) = serde_json::to_vec(&saved) {
+        let _ = std::fs::write(bulk_file(), bytes);
+    }
+}
+
+fn load_bulk() -> Bulk {
+    let Some(saved) = std::fs::read(bulk_file()).ok().and_then(|b| serde_json::from_slice::<SavedBulk>(&b).ok()) else {
+        return Bulk::default();
+    };
+    Bulk {
+        skip_existing: saved.skip_existing,
+        place: saved.place,
+        items: saved
+            .items
+            .into_iter()
+            .map(|it| BulkItem {
+                id: it.id,
+                state: BULK_STATES.iter().copied().find(|s| *s == it.state).unwrap_or("paused"),
+                name: it.name,
+                method: it.method,
+                account: it.account,
+                path: it.path,
+                error: it.error,
+            })
+            .collect(),
+        ..Default::default()
+    }
 }
 
 #[derive(Serialize, Clone, Default)]
@@ -173,11 +251,11 @@ pub async fn run(updated: bool) -> std::io::Result<()> {
     let state = AppState {
         rb: Roblox::new(),
         pool: Pool::default(),
-        bulk: Arc::default(),
+        bulk: Arc::new(Mutex::new(load_bulk())),
         last_ping: Arc::new(Mutex::new(std::time::Instant::now())),
         quit_when_done: Arc::default(),
         update: Arc::new(Mutex::new(("", 0, 0))),
-        migrate: Arc::default(),
+        migrate: crate::migrate::load(),
         studio: crate::studio::load(),
         required: Arc::new(Mutex::new(saved_requirement())),
         key: Arc::new(new_key()),
@@ -220,6 +298,8 @@ pub async fn run(updated: bool) -> std::io::Result<()> {
         .route("/api/bulk/preview", post(bulk_preview))
         .route("/api/bulk/clear", post(bulk_clear))
         .route("/api/bulk/retry", post(bulk_retry))
+        .route("/api/bulk/resume", post(bulk_resume))
+        .route("/api/bulk/pause", post(bulk_pause))
         .route("/api/expand", post(expand))
         .route("/api/studio/code", post(studio_code))
         .route("/api/studio/status", get(studio_status))
@@ -1083,6 +1163,8 @@ async fn bulk_start(State(st): State<AppState>, Json(body): Json<BulkBody>) -> J
         *b = Bulk {
             running: true,
             cancel: false,
+            pause: false,
+            saved_at: None,
             skip_existing: body.skip_existing,
             prefetched: 0,
             place: parse_place(body.place.as_deref()),
@@ -1093,6 +1175,7 @@ async fn bulk_start(State(st): State<AppState>, Json(body): Json<BulkBody>) -> J
         };
     }
     let total = ids.len();
+    save_bulk(&mut st.bulk.lock().unwrap_or_else(|e| e.into_inner()));
     let workers = spawn_bulk(&st, (0..total).collect());
     ok(json!({ "total": total, "workers": workers }))
 }
@@ -1104,7 +1187,24 @@ struct RetryBody {
 }
 
 async fn bulk_retry(State(st): State<AppState>, Json(body): Json<RetryBody>) -> Json<Value> {
-    let only: Option<Vec<i64>> = body.ids.map(|v| v.iter().filter_map(|x| x.parse().ok()).collect());
+    requeue(&st, body.ids, &["error", "skipped"], "nothing failed, nothing to retry")
+}
+
+async fn bulk_resume(State(st): State<AppState>) -> Json<Value> {
+    requeue(&st, None, &["paused", "queued", "working", "waiting"], "nothing left to resume")
+}
+
+async fn bulk_pause(State(st): State<AppState>) -> Json<Value> {
+    let mut b = st.bulk.lock().unwrap_or_else(|e| e.into_inner());
+    if b.running {
+        b.cancel = true;
+        b.pause = true;
+    }
+    ok(Value::Null)
+}
+
+fn requeue(st: &AppState, ids: Option<Vec<String>>, states: &[&str], nothing: &str) -> Json<Value> {
+    let only: Option<Vec<i64>> = ids.map(|v| v.iter().filter_map(|x| x.parse().ok()).collect());
     let todo: Vec<usize> = {
         let mut b = st.bulk.lock().unwrap_or_else(|e| e.into_inner());
         if b.running {
@@ -1114,7 +1214,7 @@ async fn bulk_retry(State(st): State<AppState>, Json(body): Json<RetryBody>) -> 
             .items
             .iter()
             .enumerate()
-            .filter(|(_, it)| it.state == "error" || it.state == "skipped")
+            .filter(|(_, it)| states.contains(&it.state))
             .filter(|(_, it)| only.as_ref().is_none_or(|o| o.contains(&it.id)))
             .map(|(i, _)| i)
             .collect();
@@ -1124,16 +1224,17 @@ async fn bulk_retry(State(st): State<AppState>, Json(body): Json<RetryBody>) -> 
         if !todo.is_empty() {
             b.running = true;
             b.cancel = false;
+            b.pause = false;
             b.started = Some(std::time::Instant::now());
             b.base = b.items.iter().filter(|it| bulk_done(it.state)).count();
         }
         todo
     };
     if todo.is_empty() {
-        return fail("nothing failed, nothing to retry");
+        return fail(nothing);
     }
     let total = todo.len();
-    let workers = spawn_bulk(&st, todo);
+    let workers = spawn_bulk(st, todo);
     ok(json!({ "total": total, "workers": workers }))
 }
 
@@ -1788,6 +1889,9 @@ fn spawn_bulk(st: &AppState, todo: Vec<usize>) -> usize {
 fn bulk_set(st: &AppState, i: usize, f: impl FnOnce(&mut BulkItem)) -> bool {
     let mut b = st.bulk.lock().unwrap_or_else(|e| e.into_inner());
     f(&mut b.items[i]);
+    if bulk_done(b.items[i].state) && b.saved_at.is_none_or(|t| t.elapsed() > std::time::Duration::from_secs(2)) {
+        save_bulk(&mut b);
+    }
     b.cancel
 }
 
@@ -1821,7 +1925,8 @@ async fn run_bulk(st: AppState, todo: Vec<usize>, workers: usize) {
                 let Some(&i) = todo.get(next.fetch_add(1, Ordering::SeqCst)) else { break };
                 let id = st.bulk.lock().unwrap_or_else(|e| e.into_inner()).items[i].id;
                 if bulk_set(&st, i, |it| it.state = "working") {
-                    bulk_set(&st, i, |it| it.state = "skipped");
+                    let pause = st.bulk.lock().unwrap_or_else(|e| e.into_inner()).pause;
+                    bulk_set(&st, i, |it| it.state = if pause { "paused" } else { "skipped" });
                     continue;
                 }
                 if skip_existing {
@@ -1868,11 +1973,13 @@ async fn run_bulk(st: AppState, todo: Vec<usize>, workers: usize) {
     for h in handles {
         let _ = h.await;
     }
-    st.bulk.lock().unwrap_or_else(|e| e.into_inner()).running = false;
+    let mut b = st.bulk.lock().unwrap_or_else(|e| e.into_inner());
+    b.running = false;
+    save_bulk(&mut b);
 }
 
 fn bulk_done(state: &str) -> bool {
-    matches!(state, "ok" | "error" | "have" | "skipped")
+    matches!(state, "ok" | "error" | "have" | "skipped" | "paused")
 }
 
 fn eta(started: Option<std::time::Instant>, base: usize, done: usize, total: usize) -> Option<u64> {
@@ -1921,7 +2028,7 @@ async fn jobs(State(st): State<AppState>) -> Json<Value> {
 
 async fn bulk_status(State(st): State<AppState>) -> Json<Value> {
     let b = st.bulk.lock().unwrap_or_else(|e| e.into_inner());
-    ok(json!({ "running": b.running, "prefetched": b.prefetched, "scout": b.scout, "items": b.items }))
+    ok(json!({ "running": b.running, "pausing": b.running && b.pause, "prefetched": b.prefetched, "scout": b.scout, "items": b.items }))
 }
 
 #[derive(Deserialize)]
@@ -1974,6 +2081,7 @@ async fn bulk_clear(State(st): State<AppState>) -> Json<Value> {
         return fail("can't clear while a batch is running");
     }
     b.items.clear();
+    save_bulk(&mut b);
     ok(Value::Null)
 }
 
