@@ -20,7 +20,7 @@ keyring = { version = "3", features = ["windows-native"] }
 dirs = "7"
 thiserror = "2"
 open = "5"
-rfd = "0.17"
+rfd = "0.18"
 zip = { version = "9", default-features = false, features = ["deflate"] }
 lz4_flex = "0.11"
 zstd = "0.13"
