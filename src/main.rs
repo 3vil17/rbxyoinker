@@ -1,6 +1,7 @@
 // Copyright (C) 2026 3vil17. AGPL-3.0 with additional terms, see LICENSE and NOTICE.md.
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
+mod anim;
 mod convert;
 mod download;
 mod error;
