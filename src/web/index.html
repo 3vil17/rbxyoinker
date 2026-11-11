@@ -246,15 +246,12 @@
   .note .acts { margin-top: 9px; }
   .dot { display: inline-block; width: 7px; height: 7px; border-radius: 50%; margin-right: 6px; vertical-align: middle; }
   .dot.on { background: var(--green); } .dot.off { background: var(--red); } .dot.idle { background: rgb(110,110,110); }
-  .mg-studio { flex-direction: row; display: flex; align-items: center; gap: 9px; padding-top: 12px; padding-bottom: 12px; font-size: 0.8rem; color: rgb(200, 200, 200); }
-  .mg-studio .rlink { margin-left: auto; font-size: 12px; }
-  .feat .row { padding: 10px 0; }
-  .feat .s { white-space: normal; line-height: 1.5; }
-  .feat .s svg { width: 12px; height: 12px; vertical-align: -2px; stroke: currentColor; fill: none; stroke-width: 1.8; }
-  .feat .where { flex-shrink: 0; font-size: 12px; color: rgb(120, 120, 120); white-space: nowrap; }
-  .mg-studio .rlink, .feat .rlink { flex-shrink: 0; white-space: nowrap; font-size: 12px; }
-  .mg-studio .rlink:hover, .feat .rlink:hover { opacity: 1; text-decoration: underline; }
-  .mg-studio .dot { margin-right: 0; }
+  .acct .dot { margin-right: 0; }
+  .pop-head { display: flex; align-items: center; gap: 8px; margin-bottom: 14px; }
+  .pop-head h2.sect { margin: 0; }
+  .pop-x { appearance: none; margin-left: auto; background: none; border: none; color: rgb(136,136,136); cursor: pointer; padding: 4px; border-radius: 5px; display: flex; }
+  .pop-x:hover { color: #fff; background: rgba(255,255,255,0.07); }
+  .pop-x svg { width: 15px; height: 15px; stroke: currentColor; fill: none; stroke-width: 1.8; }
 
   .usage { font-size: 0.83rem; line-height: 1.7; color: rgb(170, 170, 170); }
   .usage ul { margin: 0; padding-left: 18px; }
@@ -558,7 +555,6 @@
         <button data-tab="bulk" data-i="layers">Bulk</button>
         <button data-tab="migrate" data-i="move">Migrate</button>
         <button data-tab="convert" data-i="box">Convert</button>
-        <button data-tab="studio" data-i="plug">Studio</button>
         <div class="nav-gap"></div>
         <button data-tab="accounts" data-i="users">Accounts</button>
         <button data-tab="history" data-i="history">History</button>
@@ -567,6 +563,7 @@
       <div class="side-foot">
         <div class="side-jobs" id="side-jobs"></div>
         <button class="acct" id="side-acct"></button>
+        <button class="acct" id="side-studio"><span class="dot idle"></span><span>Studio</span></button>
         <p class="foot"><span id="app-version"></span><button class="upd-dot" id="upd-dot" style="display:none"></button> by <a href="https://github.com/3vil17" target="_blank">3vil17</a><br><a href="https://github.com/3vil17/rbxyoinker" target="_blank">GitHub</a> · <a href="#" id="changes-link">Changelog</a> · <a href="#" id="quit-link">Quit</a><br>© 2026 3vil17 · <a href="/license" target="_blank">AGPL-3.0</a><br>No warranty</p>
       </div>
     </aside>
@@ -673,55 +670,7 @@
         </div>
       </section>
 
-      <section id="tab-studio" class="tab" style="display:none">
-        <div class="card">
-          <div id="st-on" class="st-on" style="display:none">
-            <div id="st-state"></div>
-            <a href="#" id="st-off">Unpair</a>
-          </div>
-          <div id="st-pair" class="pair">
-            <h2 class="sect" style="margin:0 0 4px"><i data-i="plug"></i>Connect Studio</h2>
-            <div id="st-code" style="display:none">
-              <div class="code" id="st-tiles"></div>
-              <div class="pair-sub">Type this into the rbxyoinker plugin in Studio</div>
-              <div class="pair-links"><span id="st-left"></span> · <a href="#" id="st-copy">Copy</a> · <a href="#" id="st-new">New code</a></div>
-            </div>
-            <div id="st-nocode">
-              <div class="pair-sub">Open the plugin in Studio, then get a code and type it in.</div>
-              <button class="btn" id="st-code-btn" data-i="key">Get a code</button>
-            </div>
-          </div>
-          <div class="pl-line">
-            <span id="pl-state">Plugin</span>
-            <a href="#" id="pl-install">Install plugin</a>
-          </div>
-          <div id="pl-pick" style="display:none; margin-top:10px">
-            <p class="hint" style="margin:0 0 8px">Couldn't find Studio's Plugins folder. In Studio it's <b>Plugins tab, Plugins Folder</b>.</p>
-            <div class="frow">
-              <input id="pl-dir" type="text" placeholder="C:\Users\you\AppData\Local\Roblox\Plugins" autocomplete="off" spellcheck="false" />
-              <button class="btn" id="pl-browse" data-i="folder">Browse</button>
-              <button class="btn" id="pl-here" data-i="download">Install here</button>
-            </div>
-          </div>
-          <div class="note" id="pl-note"></div>
-        </div>
-
-        <div class="card">
-          <h2 class="sect"><i data-i="box"></i>What the plugin does</h2>
-          <div class="rows feat">
-            <div class="row"><div class="main"><div class="t">Move assets</div><div class="s">Scan a place, reupload its assets to you or a group, then swap the ids.</div></div><a href="#" class="rlink" data-go="migrate">Migrate tab</a></div>
-            <div class="row"><div class="main"><div class="t">Insert models</div><div class="s">Press <i data-i="box"></i> on a model in Recent or History and it drops in front of the camera.</div></div><a href="#" class="rlink" data-go="history">History</a></div>
-            <div class="row"><div class="main"><div class="t">Animations to a rig</div><div class="s">Select a rig in Studio, then press <i data-i="box"></i> on an animation. Eclipse and the Animation Editor both pick it up.</div></div><span class="where">Select a rig</span></div>
-            <div class="row"><div class="main"><div class="t">Every animation in the place</div><div class="s">Select a rig and press Yoink place animations to rig in the plugin. They all land in its AnimSaves.</div></div><span class="where">In the plugin</span></div>
-            <div class="row"><div class="main"><div class="t">Download selection</div><div class="s">Select things in Studio and press Download selection in the plugin. Their assets show up in Bulk.</div></div><a href="#" class="rlink" data-go="bulk">Bulk tab</a></div>
-            <div class="row"><div class="main"><div class="t">Find where an id is used</div><div class="s">Select in Studio on a Migrate row selects every instance using that asset.</div></div><a href="#" class="rlink" data-go="migrate">Migrate tab</a></div>
-          </div>
-        </div>
-      </section>
-
       <section id="tab-migrate" class="tab" style="display:none">
-        <div class="card mg-studio" id="mg-studio"></div>
-
         <div class="cols">
           <div class="card">
             <h2 class="sect"><i data-i="search"></i>Scan</h2>
@@ -957,6 +906,40 @@
 
   <div id="toasts"></div>
 
+<div class="modal-bg" id="studio-pop" style="display:none">
+  <div class="card modal" style="max-width:580px">
+    <div class="pop-head"><h2 class="sect"><i data-i="plug"></i>Studio</h2><button class="pop-x" id="studio-x" title="Close"><i data-i="x"></i></button></div>
+          <div id="st-on" class="st-on" style="display:none">
+            <div id="st-state"></div>
+            <a href="#" id="st-off">Unpair</a>
+          </div>
+          <div id="st-pair" class="pair">
+            <h2 class="sect" style="margin:0 0 4px"><i data-i="plug"></i>Connect Studio</h2>
+            <div id="st-code" style="display:none">
+              <div class="code" id="st-tiles"></div>
+              <div class="pair-sub">Type this into the rbxyoinker plugin in Studio</div>
+              <div class="pair-links"><span id="st-left"></span> · <a href="#" id="st-copy">Copy</a> · <a href="#" id="st-new">New code</a></div>
+            </div>
+            <div id="st-nocode">
+              <div class="pair-sub">Open the plugin in Studio, then get a code and type it in.</div>
+              <button class="btn" id="st-code-btn" data-i="key">Get a code</button>
+            </div>
+          </div>
+          <div class="pl-line">
+            <span id="pl-state">Plugin</span>
+            <a href="#" id="pl-install">Install plugin</a>
+          </div>
+          <div id="pl-pick" style="display:none; margin-top:10px">
+            <p class="hint" style="margin:0 0 8px">Couldn't find Studio's Plugins folder. In Studio it's <b>Plugins tab, Plugins Folder</b>.</p>
+            <div class="frow">
+              <input id="pl-dir" type="text" placeholder="C:\Users\you\AppData\Local\Roblox\Plugins" autocomplete="off" spellcheck="false" />
+              <button class="btn" id="pl-browse" data-i="folder">Browse</button>
+              <button class="btn" id="pl-here" data-i="download">Install here</button>
+            </div>
+          </div>
+          <div class="note" id="pl-note"></div>
+  </div>
+</div>
 <div class="modal-bg" id="ask" style="display:none; z-index:30">
   <div class="card modal" style="max-width:400px">
     <p id="ask-text" style="margin:0; font-size:0.85rem; line-height:1.6; color:rgb(212,212,212)"></p>
@@ -1097,7 +1080,6 @@ const TAB_INFO = {
   bulk: ["Bulk", "Up to 1000 ids at once, or everything in a place file."],
   migrate: ["Migrate", "Move a place's assets to your account or a group."],
   convert: ["Convert", "Turn .mesh files into .obj or .glb, right on this PC."],
-  studio: ["Studio", "Pair the plugin so the app can work with the place you have open."],
   accounts: ["Accounts", "Who's signed in and how busy they are."],
   history: ["History", "Your last 200 downloads."],
   settings: ["Settings", "Cookies, folders and file names."],
@@ -1295,11 +1277,10 @@ document.querySelectorAll("nav button").forEach((b) => {
     b.classList.add("active");
     const tab = b.dataset.tab;
     store("tab", tab);
-    ["download", "bulk", "migrate", "convert", "studio", "accounts", "settings", "history"].forEach((t) => { $("#tab-" + t).style.display = t === tab ? "flex" : "none"; });
+    ["download", "bulk", "migrate", "convert", "accounts", "settings", "history"].forEach((t) => { $("#tab-" + t).style.display = t === tab ? "flex" : "none"; });
     showTab(tab); checkHealth();
     clearInterval(accTimer); clearInterval(mgTimer);
     if (tab === "migrate") { loadTargets(); loadPluginState(); loadScanPick(); pollMigrate(); mgTimer = setInterval(pollMigrate, 1500); }
-    if (tab === "studio") { loadPluginState(); pollStudio(); mgTimer = setInterval(pollStudio, 1500); }
     if (tab === "settings") loadSettings();
     if (tab === "history") loadHistory();
     if (tab === "accounts") { loadAccounts(); accTimer = setInterval(loadAccounts, 2000); }
@@ -1361,6 +1342,7 @@ function wireActs(root, after) {
 }
 async function insertIntoStudio(noteEl, path) {
   const res = await post("/api/studio/insert", { path });
+  if (!res.ok && /isn't paired/i.test(res.error)) { openStudio(); return; }
   const msg = res.ok ? (res.data.live ? "Inserting it into Studio." : "Studio isn't open, it goes in when the plugin connects.") : esc(res.error);
   if (!noteEl) { toast(res.ok ? "ok" : "err", msg); return; }
   showNote(noteEl, res.ok ? "info" : "err", msg);
@@ -1547,9 +1529,8 @@ async function pollStudio() {
   $("#st-state").innerHTML = '<span class="dot ' + (live ? "on" : "idle") + '"></span>' +
     (live ? "Studio connected" + (s.place ? " · <b>" + esc(s.place) + "</b>" : "")
       : 'Paired with Studio <span style="color:rgb(120,120,120)">· open Studio and it connects by itself</span>');
-  $("#mg-studio").innerHTML = '<span class="dot ' + (live ? "on" : "idle") + '"></span><span>' +
-    (live ? "Studio connected" + (s.place ? " · <b>" + esc(s.place) + "</b>" : "") : s.connected ? "Paired with Studio, open it and it connects by itself" : "Studio isn't paired yet") +
-    '</span><a href="#" class="rlink" data-go="studio">' + (s.connected ? "Studio tab" : "Pair it") + "</a>";
+  $("#side-studio").innerHTML = '<span class="dot ' + (live ? "on" : "idle") + '"></span><span>Studio · ' +
+    (live ? esc(s.place || "connected") : s.connected ? "paired" : "not paired") + "</span>";
   stCode = s.code || "";
   $("#st-code").style.display = s.code ? "" : "none";
   $("#st-nocode").style.display = s.code ? "none" : "";
@@ -1563,6 +1544,15 @@ async function pollStudio() {
   }
 }
 let stCode = "";
+function openStudio() {
+  $("#studio-pop").style.display = "flex";
+  loadPluginState(); pollStudio();
+}
+function closeStudio() { $("#studio-pop").style.display = "none"; }
+$("#side-studio").onclick = openStudio;
+$("#studio-x").onclick = closeStudio;
+$("#studio-pop").addEventListener("mousedown", (e) => { if (e.target.id === "studio-pop") closeStudio(); });
+setInterval(() => { if (!document.hidden) pollStudio(); }, 2000);
 let stLive = false;
 async function newCode(e) { if (e) e.preventDefault(); await post("/api/studio/code", {}); pollStudio(); }
 $("#st-code-btn").onclick = () => newCode();
@@ -1871,6 +1861,7 @@ $("#mg-rows").addEventListener("click", async (e) => {
   const b = e.target.closest("[data-show]"); if (!b) return;
   e.preventDefault();
   const res = await post("/api/studio/show", { ids: [b.dataset.show] });
+  if (!res.ok && /isn't paired/i.test(res.error)) { openStudio(); return; }
   if (!res.ok) { showNote($("#mg-note"), "err", esc(res.error)); return; }
   showNote($("#mg-note"), "info", res.data.live ? "Selecting it in Studio." : "Studio isn't open, it gets selected when the plugin connects.");
 });
@@ -2356,6 +2347,7 @@ document.querySelectorAll(".qk").forEach((q) => {
 document.addEventListener("keydown", (e) => {
   if (e.key !== "Escape") return;
   if ($("#ask").style.display === "flex") $("#ask-no").click();
+  else if ($("#studio-pop").style.display === "flex") closeStudio();
   else if ($("#changes").style.display === "flex") $("#changes-ok").click();
 });
 document.addEventListener("keydown", (e) => {
