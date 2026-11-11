@@ -2407,6 +2407,7 @@ mod tests {
             required: Arc::new(Mutex::new(required.map(String::from))),
             key: Arc::new("k".repeat(48)),
             ready: Arc::default(),
+            boot: Arc::default(),
         }
     }
 
