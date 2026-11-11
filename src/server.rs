@@ -481,7 +481,7 @@ async fn lookup(State(st): State<AppState>, Query(q): Query<LookupQ>) -> Json<Va
             "creator_type": "",
             "creator_name": "",
             "thumbnail": Value::Null,
-            "note": "no public details, download will still try the auth ladder",
+            "note": "Roblox doesn't show details for this one, it may be private, deleted or not an asset. Download will still try every way it knows.",
         })),
     }
 }
