@@ -427,7 +427,7 @@ disconnectButton.Size = UDim2.fromOffset(0, 28)
 disconnectButton.AutomaticSize = Enum.AutomaticSize.X
 setIcon(disconnectButton.Icon, icons.unplug)
 disconnectButton.Icon.Size = UDim2.fromOffset(13, 13)
-disconnectButton.Label.Text = "Disconnect"
+disconnectButton.Label.Text = "Unpair"
 disconnectButton.Label.TextSize = 12
 tone(disconnectButton.Label, { TextColor3 = "muted" })
 tone(disconnectButton.Icon, { ImageColor3 = "muted" })
@@ -1293,7 +1293,7 @@ end)
 disconnectButton.MouseButton1Click:Connect(function()
 	call("POST", "/api/studio/unpair", {}, true)
 	forget()
-	setStatus("Disconnected. Get a new code in the app to connect again.")
+	setStatus("Unpaired. Get a new code in the app to pair again.")
 end)
 
 toggle.Click:Connect(function()

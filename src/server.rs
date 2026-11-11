@@ -265,6 +265,7 @@ pub async fn run(updated: bool) -> std::io::Result<()> {
         .route("/api/history", get(get_history))
         .route("/api/history/clear", post(clear_history))
         .route("/api/reveal", post(reveal))
+        .route("/api/open-folder", post(open_folder))
         .route("/api/pick-folder", post(pick_folder))
         .layer(axum::middleware::from_fn_with_state(state.clone(), update_gate))
         .layer(axum::middleware::from_fn_with_state(state.clone(), key_check))
@@ -2063,6 +2064,21 @@ async fn pick_folder() -> Json<Value> {
     s.save_dir = dir.to_string_lossy().to_string();
     match store::save_settings(&s) {
         Ok(_) => ok(json!({ "save_dir": s.save_dir })),
+        Err(e) => fail(e.to_string()),
+    }
+}
+
+async fn open_folder() -> Json<Value> {
+    let dir = std::path::PathBuf::from(store::load_settings().save_dir);
+    if let Err(e) = std::fs::create_dir_all(&dir) {
+        return fail(e.to_string());
+    }
+    unlock_foreground();
+    match std::process::Command::new("explorer").arg(&dir).spawn() {
+        Ok(_) => {
+            tokio::spawn(raise_explorer(dir));
+            ok(Value::Null)
+        }
         Err(e) => fail(e.to_string()),
     }
 }
