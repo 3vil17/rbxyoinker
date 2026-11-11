@@ -24,7 +24,7 @@ rfd = "0.18"
 zip = { version = "9", default-features = false, features = ["deflate"] }
 lz4_flex = "0.11"
 zstd = "0.13"
-getrandom = "0.2"
+getrandom = "0.4"
 minisign-verify = "0.3"
 rbxmesh = { git = "https://github.com/3vil17/rbxmesh", tag = "v0.1.0" }
 image = { version = "0.25", default-features = false, features = ["png", "jpeg", "webp"] }

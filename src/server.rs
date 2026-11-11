@@ -800,7 +800,7 @@ const KEY_OPEN: &[&str] = &[
 
 fn new_key() -> String {
     let mut buf = [0u8; 24];
-    if getrandom::getrandom(&mut buf).is_err() {
+    if getrandom::fill(&mut buf).is_err() {
         let seed = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).map_or(0, |d| d.as_nanos());
         buf[..16].copy_from_slice(&(seed ^ (std::process::id() as u128) << 64).to_le_bytes());
     }
