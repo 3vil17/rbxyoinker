@@ -77,8 +77,8 @@ fn parse_releases(body: &str) -> Option<Vec<Release>> {
                     .and_then(|a| a["browser_download_url"].as_str())
                     .map(String::from)
             };
-            let exe_url = asset(".exe");
-            let sig_url = asset(".exe.minisig");
+            let exe_url = asset(crate::platform::UPDATE_SUFFIX);
+            let sig_url = asset(&format!("{}.minisig", crate::platform::UPDATE_SUFFIX));
             Some(Release {
                 tag: r["tag_name"].as_str()?.to_string(),
                 url: r["html_url"].as_str().unwrap_or_default().to_string(),

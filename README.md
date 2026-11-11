@@ -11,22 +11,29 @@
 </p>
 
 <p align="center">
-  <a href="https://github.com/3vil17/rbxyoinker/releases/latest"><img src="https://img.shields.io/github/v/release/3vil17/rbxyoinker?label=download&color=3bea57" alt="Latest release" /></a>
-  <a href="https://github.com/3vil17/rbxyoinker/actions/workflows/ci.yml"><img src="https://github.com/3vil17/rbxyoinker/actions/workflows/ci.yml/badge.svg?branch=main" alt="CI" /></a>
-  <img src="https://img.shields.io/badge/platform-windows-555" alt="Windows" />
-  <a href="LICENSE"><img src="https://img.shields.io/badge/license-AGPL--3.0-555" alt="AGPL-3.0" /></a>
+  <a href="https://github.com/3vil17/rbxyoinker/releases/latest/download/rbxyoinker.exe"><img src="https://img.shields.io/badge/Download_for_Windows-3bea57?style=for-the-badge&logo=windows&logoColor=black" alt="Download for Windows" height="36" /></a>
+  <a href="https://github.com/3vil17/rbxyoinker/releases/latest/download/rbxyoinker-macos.zip"><img src="https://img.shields.io/badge/Download_for_macOS_(beta)-2a2a2a?style=for-the-badge&logo=apple&logoColor=white" alt="Download for macOS" height="36" /></a>
+</p>
+
+<p align="center">
+  <a href="https://github.com/3vil17/rbxyoinker/releases/latest"><img src="https://img.shields.io/github/v/release/3vil17/rbxyoinker?style=flat-square&label=version&color=3bea57" alt="Latest release" /></a>
+  <a href="https://github.com/3vil17/rbxyoinker/releases"><img src="https://img.shields.io/github/downloads/3vil17/rbxyoinker/total?style=flat-square&color=3bea57" alt="Downloads" /></a>
+  <a href="https://github.com/3vil17/rbxyoinker/actions/workflows/ci.yml"><img src="https://img.shields.io/github/actions/workflow/status/3vil17/rbxyoinker/ci.yml?branch=main&style=flat-square&label=build" alt="Build" /></a>
+  <img src="https://img.shields.io/badge/platform-windows_%7C_macOS-555?style=flat-square" alt="Windows and macOS" />
+  <a href="LICENSE"><img src="https://img.shields.io/badge/license-AGPL--3.0-555?style=flat-square" alt="AGPL-3.0" /></a>
 </p>
 
 <p align="center">
   <a href="#features">Features</a> ·
   <a href="#why-rbxyoinker">Why rbxyoinker</a> ·
   <a href="#getting-started">Getting started</a> ·
+  <a href="#macos">macOS</a> ·
   <a href="#studio-plugin">Studio plugin</a> ·
   <a href="#security">Security</a> ·
   <a href="#faq">FAQ</a>
 </p>
 
-![The Download tab](docs/download.png)
+<p align="center"><img src="docs/demo.gif" alt="Fetching an asset, a bulk list and the other tabs" width="900" /></p>
 
 ## Features
 
@@ -71,20 +78,39 @@ Most Roblox asset downloaders are websites. They're quick for grabbing one publi
 | Scan a place or model file for assets | Yes | No |
 | Mesh to `.obj` / `.glb` | Every version, rigged `.glb` | No |
 | Roblox Studio plugin | Migrate, insert, animations, selection | No |
-| Where it runs | Your PC, cookies stay in Windows Credential Manager | Someone else's server |
+| Where it runs | Your PC, cookies stay in your system keychain | Someone else's server |
 | Source code | Open source (AGPL-3.0) | Closed |
 
-What a website does better: there's nothing to install and you don't need to add an account to grab a public asset. rbxyoinker is also Windows only for now.
+What a website does better: there's nothing to install and you don't need to add an account to grab a public asset. rbxyoinker runs on Windows and macOS (beta), not Linux.
 
 ## Getting started
 
-1. Download `rbxyoinker.exe` from the [latest release](https://github.com/3vil17/rbxyoinker/releases/latest). There's nothing to install.
+### Windows
+
+1. Download [`rbxyoinker.exe`](https://github.com/3vil17/rbxyoinker/releases/latest/download/rbxyoinker.exe). There's nothing to install.
 2. Windows may warn that it's from an unknown publisher because the exe isn't code signed. Click **More info**, then **Run anyway**.
 3. A browser tab opens. If it doesn't, go to http://127.0.0.1:48620.
 4. In **Settings**, add a `.ROBLOSECURITY` cookie from an alt account. Most assets need a signed in account.
 5. Paste an id or link into **Download** and press Fetch. `Ctrl+V` anywhere on the page works too.
 
 To close it, close the tab or use **Quit** at the bottom of the sidebar.
+
+### macOS
+
+The Mac version is a beta. It's one file that runs on both Apple Silicon and Intel Macs (macOS 11 or newer). It isn't signed by Apple, so macOS blocks it the first time. This is how to let it through:
+
+1. Download [`rbxyoinker-macos.zip`](https://github.com/3vil17/rbxyoinker/releases/latest/download/rbxyoinker-macos.zip) and double-click it. You get a file called `rbxyoinker` in Downloads.
+2. Open **Terminal** (Spotlight, type Terminal) and run this once:
+   ```
+   xattr -d com.apple.quarantine ~/Downloads/rbxyoinker
+   ```
+   This removes the "downloaded from the internet" flag, which is what makes macOS say the app is damaged or from an unidentified developer.
+3. Double-click `rbxyoinker`. A Terminal window opens and a browser tab opens with the app. Leave the Terminal window open while you use it.
+4. After an update, macOS may ask whether rbxyoinker can use your Keychain (that's where your cookies are). Click **Always Allow**.
+
+Rather not use Terminal? Double-click `rbxyoinker`, click **Done** on the warning, then go to **System Settings → Privacy & Security**, scroll down and click **Open Anyway** next to rbxyoinker.
+
+Everything else works like on Windows. Cookies go in the macOS Keychain, and the Studio plugin installs into `~/Documents/Roblox/Plugins`. If something doesn't work on your Mac, please [open an issue](https://github.com/3vil17/rbxyoinker/issues).
 
 > Only download rbxyoinker from this repo. Copies from anywhere else may be modified.
 
@@ -150,7 +176,7 @@ Animating in Blender? Put the animation on your rig, then send it over with [RBX
 
 ## Accounts and cookies
 
-A `.ROBLOSECURITY` cookie is a full login, so never share it. rbxyoinker keeps cookies in Windows Credential Manager, not in a file, and only ever sends them to Roblox.
+A `.ROBLOSECURITY` cookie is a full login, so never share it. rbxyoinker keeps cookies in Windows Credential Manager or the macOS Keychain, not in a file, and only ever sends them to Roblox.
 
 Adding a few accounts makes bulk downloads faster. Requests are spread across them, and if one gets rate limited the others keep going.
 
@@ -162,7 +188,7 @@ An Open Cloud API key with the `legacy-asset:manage` scope works too, but it rea
 - **Signed updates.** Releases are built by GitHub Actions and signed with a key that isn't stored on GitHub. The app won't install an update unless the signature matches, so even a hacked GitHub account can't push a bad update.
 - **Important updates are enforced.** When a release fixes something serious, older versions stop working until they update.
 
-To check a download yourself, grab `rbxyoinker.exe.minisig` from the same release and run:
+To check a download yourself, grab the matching `.minisig` file from the same release and run:
 
 ```
 minisign -Vm rbxyoinker.exe -P RWQIISBNpKRKRP5ILebS96X44Nh05784HVJdk71MBLHvoezrKP1rgv6t
@@ -171,6 +197,9 @@ minisign -Vm rbxyoinker.exe -P RWQIISBNpKRKRP5ILebS96X44Nh05784HVJdk71MBLHvoezrK
 Found a security problem? Open an issue, but leave out the details of how to exploit it.
 
 ## Troubleshooting
+
+<details>
+<summary>What a failed download means</summary>
 
 When a download fails, rbxyoinker says why in plain words, and **Details** shows what Roblox said at each step.
 
@@ -181,27 +210,39 @@ When a download fails, rbxyoinker says why in plain words, and **Details** shows
 | In review | Roblox hasn't approved it yet. Try again later. |
 | Package | Packages only download for accounts that have access to them. |
 
+</details>
+
 ## FAQ
+
+<details>
+<summary>Free? Mac? Private assets? Account safety?</summary>
 
 **Is it free?** Yes. No ads, no keys, no paid features.
 
-**Does it work on Mac or Linux?** Not yet, it's Windows only.
+**Does it work on Mac or Linux?** Mac yes, as a beta (see [macOS](#macos)). Linux isn't supported.
 
 **Can it download any private asset?** No tool can. It reaches private assets through games that use them, which covers a lot, but not assets that aren't used in any game it can find.
 
-**Is my cookie safe?** It stays on your PC in Windows Credential Manager and is only sent to Roblox. Still, use an alt.
+**Is my cookie safe?** It stays on your computer in Windows Credential Manager or the macOS Keychain and is only sent to Roblox. Still, use an alt.
 
 **Can my account get banned?** Using accounts with third party tools is always at your own risk. Downloading only uses Roblox's normal download endpoints. Uploading (Migrate) is where moderation strikes happen, which is why it warns you about main accounts.
 
+</details>
+
 ## Build it yourself
 
-You need Rust and the MSVC build tools.
+<details>
+<summary>Building from source</summary>
+
+You need Rust. On Windows you also need the MSVC build tools, on macOS the Xcode command line tools.
 
 ```
 cargo build --release
 ```
 
-The exe ends up in `target/release/rbxyoinker.exe`.
+The app ends up in `target/release/`.
+
+</details>
 
 ## Disclaimer
 

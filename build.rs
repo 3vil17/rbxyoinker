@@ -1,5 +1,8 @@
 // Copyright (C) 2026 3vil17. AGPL-3.0 with additional terms, see LICENSE and NOTICE.md.
 fn main() {
+    if std::env::var("CARGO_CFG_TARGET_OS").as_deref() != Ok("windows") {
+        return;
+    }
     let mut res = winresource::WindowsResource::new();
     res.set("ProductName", "rbxyoinker")
         .set("FileDescription", "rbxyoinker - Roblox asset downloader")

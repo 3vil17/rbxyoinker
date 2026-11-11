@@ -31,8 +31,35 @@ jobs:
           path: target/release/rbxyoinker.exe
           retention-days: 1
 
+  macos:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          persist-credentials: false
+      - run: rustup target add aarch64-apple-darwin x86_64-apple-darwin
+      - uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0
+      - run: cargo test --locked
+      - run: |
+          cargo build --release --locked --target aarch64-apple-darwin
+          cargo build --release --locked --target x86_64-apple-darwin
+      - name: Universal binary
+        run: |
+          mkdir -p dist
+          lipo -create -output dist/rbxyoinker target/aarch64-apple-darwin/release/rbxyoinker target/x86_64-apple-darwin/release/rbxyoinker
+          codesign --force -s - dist/rbxyoinker
+          lipo -info dist/rbxyoinker
+          dist/rbxyoinker --self-test
+          cd dist && ditto -c -k rbxyoinker rbxyoinker-macos.zip
+      - if: startsWith(github.ref, 'refs/tags/v')
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
+        with:
+          name: macos
+          path: dist/rbxyoinker-macos.zip
+          retention-days: 1
+
   draft-release:
-    needs: check
+    needs: [check, macos]
     if: startsWith(github.ref, 'refs/tags/v')
     runs-on: ubuntu-latest
     permissions:
@@ -48,7 +75,10 @@ jobs:
       - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333
         with:
           name: exe
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333
+        with:
+          name: macos
       - name: Draft release
         env:
           GH_TOKEN: ${{ github.token }}
-        run: gh release create "$GITHUB_REF_NAME" rbxyoinker.exe --draft --verify-tag --title "$GITHUB_REF_NAME" --repo "$GITHUB_REPOSITORY"
+        run: gh release create "$GITHUB_REF_NAME" rbxyoinker.exe rbxyoinker-macos.zip --draft --verify-tag --title "$GITHUB_REF_NAME" --repo "$GITHUB_REPOSITORY"

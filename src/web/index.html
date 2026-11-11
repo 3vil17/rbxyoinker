@@ -864,7 +864,7 @@
             <input id="cookies" type="password" placeholder="Paste a .ROBLOSECURITY to add" autocomplete="off" />
             <button class="btn" id="add-cookies" data-i="plus">Add</button>
           </div>
-          <p class="hint">A cookie is a full login, so don't share it. They stay in Windows Credential Manager on this PC. More cookies means faster bulk downloads.</p>
+          <p class="hint">A cookie is a full login, so don't share it. They stay in <span class="credstore">Windows Credential Manager</span> on this PC. More cookies means faster bulk downloads.</p>
           <div class="note" id="cookie-note"></div>
 
           <div class="sep"></div>
@@ -1035,7 +1035,7 @@
     <ul>
       <li>rbxyoinker is a fan-made tool. It isn't made by, affiliated with or endorsed by Roblox.</li>
       <li>Only download or reuse assets you made or have permission to use. Respect other creators and the Roblox Terms of Use.</li>
-      <li>A <code>.ROBLOSECURITY</code> cookie is a full login to that account. It stays on this PC in Windows Credential Manager. Never share it or paste it anywhere you don't trust.</li>
+      <li>A <code>.ROBLOSECURITY</code> cookie is a full login to that account. It stays on this PC in <span class="credstore">Windows Credential Manager</span>. Never share it or paste it anywhere you don't trust.</li>
       <li>Made by 3vil17. Official builds only come from <code>github.com/3vil17/rbxyoinker</code>. Modified versions have to say they're unofficial.</li>
       <li>Using your accounts with third party tools is at your own risk. The software comes as is, with no warranty (AGPL-3.0 license).</li>
     </ul>
@@ -2359,6 +2359,8 @@ api("/api/settings").then((res) => {
   if (!res.ok) return;
   $("#app-version").textContent = "v" + res.data.version;
   reportAccounts = res.data.cookie_count;
+  document.querySelectorAll(".credstore").forEach(el => el.textContent = res.data.credential_store || el.textContent);
+  if (res.data.os === "macos") $("#pl-dir").placeholder = "/Users/you/Documents/Roblox/Plugins";
   if (!res.data.accepted_terms) $("#terms").style.display = "flex";
   else showChanges(false);
 });
