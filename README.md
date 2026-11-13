@@ -92,7 +92,7 @@ What a website does better: there's nothing to install and you don't need to add
 1. Download [`rbxyoinker.exe`](https://github.com/3vil17/rbxyoinker/releases/latest/download/rbxyoinker.exe). There's nothing to install.
 2. Windows may warn that it's from an unknown publisher because the exe isn't code signed. Click **More info**, then **Run anyway**.
 3. A browser tab opens. If it doesn't, go to http://127.0.0.1:48620.
-4. In **Settings**, add a `.ROBLOSECURITY` cookie from an alt account. Most assets need a signed in account. [How to get one](#accounts-and-cookies).
+4. Press **Log in with Roblox** and sign in to an alt account. Most assets need a signed in account. [More on accounts](#accounts-and-cookies).
 5. Paste an id or link into **Download** and press Fetch. `Ctrl+V` anywhere on the page works too.
 
 To close it, close the tab or use **Quit** at the bottom of the sidebar.
@@ -178,7 +178,9 @@ Animating in Blender? Put the animation on your rig, then send it over with [RBX
 
 ## Accounts and cookies
 
-**Getting a cookie:**
+**Logging in:** press **Log in with Roblox** on the Download tab or in Settings. Roblox's own login page opens in a small window, you sign in there, and rbxyoinker saves that session. Your password goes to Roblox only, the app never sees it. The window uses its own private storage, so it doesn't touch your browser's logins.
+
+**Or paste a cookie yourself:**
 
 1. Install [Cookie-Editor](https://cookie-editor.com) from your browser's official store: [Chrome / Brave](https://chromewebstore.google.com/detail/cookie-editor/hlkenndednhfkekhgcdicdfddnkalmdm), [Edge](https://microsoftedge.microsoft.com/addons/detail/cookieeditor/neaplmfkghagebokkhpjpoebhdledlfi), [Firefox](https://addons.mozilla.org/addon/cookie-editor), [Safari](https://apps.apple.com/app/apple-store/id6446215341) or [Opera](https://addons.opera.com/en/extensions/details/cookie-editor-2/).
 2. Open a private / incognito window and log in to your alt on roblox.com.
