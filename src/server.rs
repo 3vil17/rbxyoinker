@@ -116,6 +116,7 @@ struct AppState {
     ready: Arc<std::sync::atomic::AtomicBool>,
     boot: Arc<Mutex<(usize, usize)>>,
     login_open: Arc<std::sync::atomic::AtomicBool>,
+    login_cancel: Arc<tokio::sync::Notify>,
 }
 
 #[derive(Default)]
@@ -266,6 +267,7 @@ pub async fn run(updated: bool) -> std::io::Result<()> {
         ready: Arc::default(),
         boot: Arc::default(),
         login_open: Arc::default(),
+        login_cancel: Arc::default(),
     };
     let loader = state.clone();
     tokio::spawn(async move {
@@ -298,6 +300,7 @@ pub async fn run(updated: bool) -> std::io::Result<()> {
         .route("/api/accounts/refresh", post(refresh_accounts))
         .route("/api/cookies/add", post(cookies_add))
         .route("/api/login/window", post(login_window))
+        .route("/api/login/cancel", post(login_cancel))
         .route("/api/cookies/remove", post(cookies_remove))
         .route("/api/cookies/remove-dead", post(cookies_remove_dead))
         .route("/api/bulk", post(bulk_start))
@@ -582,6 +585,7 @@ async fn get_settings() -> Json<Value> {
         "script_ids": s.script_ids,
         "migrate_prefix": s.migrate_prefix,
         "migrate_speed": s.migrate_speed,
+        "theme": s.theme,
         "migrate_reuse": s.migrate_reuse,
         "migrate_keep": s.migrate_keep,
         "migrate_stop_after": s.migrate_stop_after,
@@ -607,6 +611,7 @@ struct SettingsBody {
     script_ids: Option<String>,
     migrate_prefix: Option<String>,
     migrate_speed: Option<String>,
+    theme: Option<String>,
     migrate_reuse: Option<bool>,
     migrate_keep: Option<bool>,
     migrate_stop_after: Option<u32>,
@@ -657,6 +662,12 @@ async fn set_settings(Json(body): Json<SettingsBody>) -> Json<Value> {
     }
     if let Some(prefix) = body.migrate_prefix {
         s.migrate_prefix = prefix.trim_start().chars().take(30).collect();
+    }
+    if let Some(theme) = body.theme {
+        if !store::THEMES.contains(&theme.as_str()) {
+            return fail("unknown theme");
+        }
+        s.theme = theme;
     }
     if let Some(speed) = body.migrate_speed {
         if !store::MIGRATE_SPEEDS.contains(&speed.as_str()) {
@@ -745,30 +756,51 @@ async fn cookies_add(State(st): State<AppState>, Json(body): Json<AddCookiesBody
     ok(json!({ "added": added, "count": list.len() }))
 }
 
+async fn login_cancel(State(st): State<AppState>) -> Json<Value> {
+    if st.login_open.load(Ordering::SeqCst) {
+        st.login_cancel.notify_waiters();
+    }
+    ok(Value::Null)
+}
+
 async fn login_window(State(st): State<AppState>) -> Json<Value> {
     use tokio::io::AsyncBufReadExt;
     if st.login_open.swap(true, Ordering::SeqCst) {
         return fail("the login window is already open");
     }
-    let result = run_login_window().await;
+    let result = run_login_window(st.login_cancel.clone()).await;
     st.login_open.store(false, Ordering::SeqCst);
     let cookie = match result {
         Ok(c) => c,
         Err(e) => return fail(e),
     };
+    let info = st.rb.cookie_info(&cookie).await;
     let mut list = store::load_cookies();
+    let mut replaced = false;
+    if let Some(uid) = info.user_id {
+        let mut keep = Vec::with_capacity(list.len());
+        for old in list {
+            if old != cookie && st.rb.cookie_info(&old).await.user_id == Some(uid) {
+                replaced = true;
+                continue;
+            }
+            keep.push(old);
+        }
+        list = keep;
+    }
     let added = !list.contains(&cookie);
     if added {
         list.push(cookie.clone());
+    }
+    if added || replaced {
         if let Err(e) = store::save_cookies(&list) {
             return fail(e.to_string());
         }
     }
     st.pool.reload(&st.rb).await;
-    let who = st.rb.cookie_info(&cookie).await.username;
-    return ok(json!({ "added": added, "count": list.len(), "user": who }));
+    return ok(json!({ "added": added && !replaced, "replaced": replaced, "count": list.len(), "user": info.username }));
 
-    async fn run_login_window() -> Result<String, String> {
+    async fn run_login_window(cancel: Arc<tokio::sync::Notify>) -> Result<String, String> {
         let exe = std::env::current_exe().map_err(|e| e.to_string())?;
         let mut child = tokio::process::Command::new(exe)
             .arg("--login")
@@ -781,9 +813,20 @@ async fn login_window(State(st): State<AppState>) -> Json<Value> {
         let stdout = child.stdout.take().ok_or("couldn't talk to the login window")?;
         let mut lines = tokio::io::BufReader::new(stdout).lines();
         let mut cookie = None;
-        while let Ok(Some(line)) = lines.next_line().await {
-            if let Some(c) = line.strip_prefix(crate::login::DONE_PREFIX) {
-                cookie = Some(c.trim().to_string());
+        loop {
+            tokio::select! {
+                line = lines.next_line() => match line {
+                    Ok(Some(line)) => {
+                        if let Some(c) = line.strip_prefix(crate::login::DONE_PREFIX) {
+                            cookie = Some(c.trim().to_string());
+                        }
+                    }
+                    _ => break,
+                },
+                _ = cancel.notified() => {
+                    let _ = child.kill().await;
+                    return Err("login cancelled".into());
+                }
             }
         }
         let status = child.wait().await.map_err(|e| e.to_string())?;
@@ -2436,6 +2479,7 @@ mod tests {
             ready: Arc::default(),
             boot: Arc::default(),
             login_open: Arc::default(),
+            login_cancel: Arc::default(),
         }
     }
 
