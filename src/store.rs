@@ -98,6 +98,8 @@ pub struct Settings {
     pub migrate_prefix: String,
     #[serde(default = "default_speed")]
     pub migrate_speed: String,
+    #[serde(default = "default_theme")]
+    pub theme: String,
     #[serde(default = "yes")]
     pub migrate_reuse: bool,
     #[serde(default)]
@@ -150,6 +152,12 @@ fn default_speed() -> String {
     "normal".into()
 }
 
+pub const THEMES: &[&str] = &["midnight", "amber", "classic"];
+
+fn default_theme() -> String {
+    "midnight".into()
+}
+
 fn yes() -> bool {
     true
 }
@@ -171,6 +179,7 @@ impl Default for Settings {
             script_ids: default_script_ids(),
             migrate_prefix: String::new(),
             migrate_speed: default_speed(),
+            theme: default_theme(),
             migrate_reuse: true,
             migrate_keep: false,
             migrate_stop_after: 0,

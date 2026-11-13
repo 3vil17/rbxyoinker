@@ -33,6 +33,7 @@ pub fn run() -> i32 {
     let window = match WindowBuilder::new()
         .with_title("Log in to Roblox - rbxyoinker")
         .with_inner_size(tao::dpi::LogicalSize::new(500.0, 760.0))
+        .with_always_on_top(true)
         .build(&event_loop)
     {
         Ok(w) => w,
@@ -54,11 +55,17 @@ pub fn run() -> i32 {
             return 4;
         }
     };
+    window.set_focus();
     let started = Instant::now();
+    let mut pinned = true;
     event_loop.run(move |event, _, flow| {
         *flow = ControlFlow::WaitUntil(Instant::now() + Duration::from_millis(500));
         match event {
             Event::NewEvents(StartCause::ResumeTimeReached { .. }) => {
+                if pinned && started.elapsed() > Duration::from_secs(2) {
+                    window.set_always_on_top(false);
+                    pinned = false;
+                }
                 let found = webview
                     .cookies_for_url("https://www.roblox.com")
                     .unwrap_or_default()
