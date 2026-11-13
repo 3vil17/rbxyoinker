@@ -144,12 +144,13 @@ pub async fn fetch_and_save(
     };
 
     let mut atype = atype0;
-    let follow = matches!(atype0, 0 | 1 | 13);
+    let follow = matches!(atype0, 0 | 1 | 2 | 11 | 12 | 13 | 18);
     if let Some(inner) = convert::inner_asset_id(&attempt.bytes).filter(|_| follow) {
         if inner != id {
             if let Ok(a2) = resolver::resolve(rb, api_key, pool, inner, None, None, hint).await {
                 attempt.bytes = a2.bytes;
-                attempt.method = format!("{} (decal \u{2192} {})", attempt.method, inner);
+                let what = if matches!(atype0, 2 | 11 | 12) { "template" } else { "decal" };
+                attempt.method = format!("{} ({what} \u{2192} {})", attempt.method, inner);
                 atype = 1;
             }
         }

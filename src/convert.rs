@@ -101,7 +101,10 @@ pub fn type_label(asset_type_id: i64) -> &'static str {
         77 => "Eyelash",
         78 => "Mood",
         79 => "Dynamic Head",
-        11 | 12 => "Clothing",
+        73 | 74 => "Font",
+        88..=90 => "Makeup",
+        11 => "Shirt",
+        12 => "Pants",
         _ => "Asset",
     }
 }
