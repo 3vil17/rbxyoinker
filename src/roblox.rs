@@ -179,6 +179,36 @@ impl Roblox {
         resp.json().await.ok()
     }
 
+    pub async fn get_bytes(&self, url: &str, cookie: Option<&str>) -> Option<Vec<u8>> {
+        let mut req = self.http.get(url);
+        if let Some(c) = cookie {
+            req = req.roblox_cookie(c);
+        }
+        let resp = req.send().await.ok()?;
+        if !resp.status().is_success() {
+            return None;
+        }
+        resp.bytes().await.ok().map(|b| b.to_vec())
+    }
+
+    pub async fn user_by_name(&self, name: &str) -> Option<(i64, String)> {
+        let resp = self
+            .http
+            .post("https://users.roblox.com/v1/usernames/users")
+            .json(&json!({ "usernames": [name], "excludeBannedUsers": false }))
+            .send()
+            .await
+            .ok()?;
+        let v: Value = resp.json().await.ok()?;
+        let u = v["data"].get(0)?;
+        Some((u["id"].as_i64()?, u["name"].as_str()?.to_string()))
+    }
+
+    pub async fn user_name(&self, id: i64) -> Option<String> {
+        let v = self.get_json(&format!("https://users.roblox.com/v1/users/{id}"), None).await?;
+        v["name"].as_str().map(str::to_string)
+    }
+
     pub async fn user_groups(&self, user_id: i64) -> Vec<GroupRef> {
         if let Some(v) = fresh(self.cache().groups.get(&user_id)) {
             return v;

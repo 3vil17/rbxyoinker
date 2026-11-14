@@ -331,6 +331,7 @@ pub async fn run(updated: bool) -> std::io::Result<()> {
         .route("/api/studio/bulk", post(studio_bulk))
         .route("/api/studio/anims", post(studio_anims))
         .route("/api/studio/export", post(studio_export))
+        .route("/api/avatar", post(avatar_export))
         .route("/api/studio/inbox", get(studio_inbox))
         .route("/api/migrate/job", get(migrate_job))
         .route("/api/migrate/targets", get(migrate_targets))
@@ -1834,6 +1835,45 @@ async fn studio_export(
         "texture_total": tex_ids.len(),
     }))
     .into_response()
+}
+
+#[derive(Deserialize)]
+struct AvatarBody {
+    input: String,
+}
+
+async fn avatar_export(State(st): State<AppState>, Json(body): Json<AvatarBody>) -> Json<Value> {
+    let (target, name) = match crate::avatar::resolve(&st.rb, &body.input).await {
+        Ok(x) => x,
+        Err(e) => return fail(e),
+    };
+    let (kind, thumb) = match target {
+        crate::avatar::Target::User(id) => ("avatar", st.rb.user_headshots(&[id]).await.remove(&id)),
+        crate::avatar::Target::Asset(id) => ("item", st.rb.thumbnails(&[id]).await.remove(&id)),
+    };
+    let model = match crate::avatar::fetch(&st.rb, &st.pool, &target).await {
+        Ok(m) => m,
+        Err(e) => return fail(e),
+    };
+    let dir = std::path::PathBuf::from(store::load_settings().save_dir).join("Blender");
+    if let Err(e) = std::fs::create_dir_all(&dir) {
+        return fail(e.to_string());
+    }
+    let stem = download::sanitize(&if kind == "avatar" { format!("{name} avatar") } else { name.clone() });
+    let path = dir.join(format!("{stem}.glb"));
+    if let Err(e) = std::fs::write(&path, &model.glb) {
+        return fail(e.to_string());
+    }
+    ok(json!({
+        "path": path.to_string_lossy(),
+        "name": name,
+        "kind": kind,
+        "thumb": thumb,
+        "parts": model.parts,
+        "textures": model.textures,
+        "texture_total": model.texture_total,
+        "size": model.glb.len(),
+    }))
 }
 
 async fn yoink_anims(st: AppState, ids: Vec<i64>, place: Option<i64>) {

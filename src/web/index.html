@@ -993,6 +993,16 @@
       </section>
 
       <section id="tab-convert" class="tab" style="display:none">
+        <div class="card" id="av-card">
+          <h2 class="sect" style="margin:0 0 4px"><i data-i="users"></i>Avatar to Blender</h2>
+          <p class="hint" style="margin:0 0 12px">Paste a username, profile link or catalog link. You get one .glb with every part and texture, posed like the avatar picture, ready for Blender.</p>
+          <div class="searchbox">
+            <svg viewBox="0 0 24 24"><circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0 1 16 0"/></svg>
+            <input id="av-input" type="text" placeholder="Username, profile link or catalog link" autocomplete="off" spellcheck="false" />
+            <button class="btn main" id="av-go" data-i="download">Export .glb</button>
+          </div>
+          <div id="av-list" style="margin-top:6px"></div>
+        </div>
         <div class="card" id="cv-card">
           <button class="cv-drop" id="cv-drop" type="button">
             <span class="cv-ic" data-i="box"></span>
@@ -1306,7 +1316,7 @@ const TAB_INFO = {
   download: ["Download", "Paste an id or link and save the file."],
   bulk: ["Bulk", "Up to 1000 ids at once, or everything in a place file."],
   migrate: ["Migrate", "Move a place's assets to your account or a group."],
-  convert: ["Convert", "Turn .mesh files into .obj or .glb, right on this PC."],
+  convert: ["Convert", "Avatars and .mesh files to .glb or .obj, ready for Blender."],
   accounts: ["Accounts", "Who's signed in and how busy they are."],
   history: ["History", "Your last 200 downloads."],
   settings: ["Settings", "Cookies, folders and file names."],
@@ -2618,6 +2628,12 @@ $("#changes-link").onclick = (e) => { e.preventDefault(); showChanges(true); };
 function goTab(t) { const b = document.querySelector('nav button[data-tab="' + t + '"]'); if (b) b.click(); }
 function takeText(text) {
   text = String(text || "").trim();
+  if (/roblox\.com\/users\/\d+/i.test(text)) {
+    goTab("convert");
+    $("#av-input").value = text;
+    exportAvatar();
+    return true;
+  }
   if (!/\d/.test(text)) return false;
   const ids = [...new Set(splitIds(text))];
   if (ids.length > 1 && !/(bundles|outfits?)[/=]/i.test(text)) {
@@ -2889,6 +2905,29 @@ $("#cv-file").onchange = (e) => { convertFiles([...e.target.files]); e.target.va
 ["dragenter", "dragover"].forEach((ev) => $("#cv-card").addEventListener(ev, (e) => { e.preventDefault(); $("#cv-drop").classList.add("drop"); }));
 ["dragleave", "drop"].forEach((ev) => $("#cv-card").addEventListener(ev, (e) => { e.preventDefault(); if (ev === "drop" || !$("#cv-card").contains(e.relatedTarget)) $("#cv-drop").classList.remove("drop"); }));
 $("#cv-card").addEventListener("drop", (e) => { const fs = [...e.dataTransfer.files]; if (fs.length) convertFiles(fs); });
+async function exportAvatar() {
+  const input = $("#av-input").value.trim();
+  if (!input) { $("#av-input").focus(); return; }
+  const el = document.createElement("div"); el.className = "hist-item";
+  el.innerHTML = '<img class="rthumb" alt="" style="visibility:hidden" /><div class="hist-main"><div class="hist-name">' + esc(input) + '</div><div class="hist-sub"><span class="spinner"></span> asking Roblox for the 3D model</div></div>';
+  $("#av-list").prepend(el);
+  $("#av-go").disabled = true;
+  const res = await post("/api/avatar", { input });
+  $("#av-go").disabled = false;
+  if (!res.ok) { el.querySelector(".hist-sub").innerHTML = '<span style="color:var(--err-tx)">' + esc(res.error) + "</span>"; return; }
+  const d = res.data;
+  el.querySelector(".hist-name").textContent = d.kind === "avatar" ? "@" + d.name : d.name;
+  if (d.thumb) { const img = el.querySelector("img"); img.src = d.thumb; img.style.visibility = ""; }
+  const bits = [d.parts + (d.parts === 1 ? " part" : " parts"), d.textures + (d.textures === 1 ? " texture" : " textures"), (d.size / 1048576).toFixed(1) + " MB"];
+  if (d.textures < d.texture_total) bits.push((d.texture_total - d.textures) + " textures failed");
+  el.querySelector(".hist-sub").textContent = bits.join(" · ");
+  const btn = document.createElement("button"); btn.className = "btn"; btn.textContent = "Show";
+  btn.onclick = () => post("/api/reveal", { path: d.path });
+  el.append(btn);
+  $("#av-input").value = "";
+}
+$("#av-go").onclick = exportAvatar;
+$("#av-input").addEventListener("keydown", (e) => { if (e.key === "Enter") exportAvatar(); });
 let homeNews = null;
 async function loadHome() {
   const [h, a] = await Promise.all([api("/api/history"), api("/api/accounts")]);
