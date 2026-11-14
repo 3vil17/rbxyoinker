@@ -658,14 +658,14 @@ pub fn build(bytes: &[u8], meshes: &HashMap<i64, Vec<u8>>, textures: &HashMap<i6
     Ok(Export { glb, bones: bones.len(), clips: clips.iter().map(|c| c.name.clone()).collect() })
 }
 
-struct Buf {
-    bin: Vec<u8>,
-    views: Vec<Value>,
-    accessors: Vec<Value>,
+pub(crate) struct Buf {
+    pub(crate) bin: Vec<u8>,
+    pub(crate) views: Vec<Value>,
+    pub(crate) accessors: Vec<Value>,
 }
 
 impl Buf {
-    fn push(&mut self, data: &[u8], target: Option<u32>) -> usize {
+    pub(crate) fn push(&mut self, data: &[u8], target: Option<u32>) -> usize {
         while self.bin.len() % 4 != 0 {
             self.bin.push(0);
         }
@@ -678,7 +678,7 @@ impl Buf {
         self.views.len() - 1
     }
 
-    fn floats(&mut self, data: &[f32], width: usize, kind: &str, target: Option<u32>, bounds: bool) -> usize {
+    pub(crate) fn floats(&mut self, data: &[f32], width: usize, kind: &str, target: Option<u32>, bounds: bool) -> usize {
         let bytes: Vec<u8> = data.iter().flat_map(|f| f.to_le_bytes()).collect();
         let view = self.push(&bytes, target);
         let mut acc = json!({ "bufferView": view, "componentType": 5126, "count": data.len() / width, "type": kind });
@@ -698,7 +698,7 @@ impl Buf {
         self.accessors.len() - 1
     }
 
-    fn ints(&mut self, data: &[u32], target: u32) -> usize {
+    pub(crate) fn ints(&mut self, data: &[u32], target: u32) -> usize {
         let bytes: Vec<u8> = data.iter().flat_map(|f| f.to_le_bytes()).collect();
         let view = self.push(&bytes, Some(target));
         self.accessors.push(json!({ "bufferView": view, "componentType": 5125, "count": data.len(), "type": "SCALAR" }));
