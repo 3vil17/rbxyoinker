@@ -1644,7 +1644,7 @@ async fn studio_ping(
     if !place.is_empty() {
         p.place = place;
     }
-    let mut pong = json!({ "version": env!("CARGO_PKG_VERSION") });
+    let mut pong = json!({ "version": env!("CARGO_PKG_VERSION"), "theme": store::load_settings().theme });
     let show = std::mem::take(&mut p.show);
     if !show.is_empty() {
         pong["show"] = json!(show);

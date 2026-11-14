@@ -23,56 +23,190 @@ local mono = Font.new("rbxasset://fonts/families/RobotoMono.json", Enum.FontWeig
 local quick = TweenInfo.new(0.15, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
 local smooth = TweenInfo.new(0.35, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
 
+local montserrat = "rbxasset://fonts/families/Montserrat.json"
+local builder = "rbxasset://fonts/families/BuilderSans.json"
 local palettes = {
-	dark = {
-		page = Color3.fromRGB(22, 22, 22),
-		card = Color3.fromRGB(28, 30, 32),
-		field = Color3.fromRGB(22, 22, 22),
-		button = Color3.fromRGB(39, 41, 43),
-		buttonHover = Color3.fromRGB(51, 53, 55),
-		main = Color3.fromRGB(55, 57, 59),
-		mainHover = Color3.fromRGB(69, 71, 73),
-		line = Color3.fromRGB(255, 255, 255),
-		track = Color3.fromRGB(44, 46, 48),
-		scroll = Color3.fromRGB(90, 90, 90),
-		text = Color3.fromRGB(212, 212, 212),
-		bright = Color3.fromRGB(255, 255, 255),
-		label = Color3.fromRGB(170, 170, 170),
-		muted = Color3.fromRGB(136, 136, 136),
-		dim = Color3.fromRGB(100, 100, 100),
-		placeholder = Color3.fromRGB(64, 64, 64),
-		green = Color3.fromRGB(59, 234, 87),
-		okText = Color3.fromRGB(59, 186, 87),
-		red = Color3.fromRGB(236, 59, 71),
-		errText = Color3.fromRGB(208, 96, 112),
-		accent = "#3BEA57",
+	midnight = {
+		dark = {
+			family = builder,
+			page = Color3.fromRGB(17, 17, 19),
+			card = Color3.fromRGB(24, 24, 27),
+			field = Color3.fromRGB(14, 14, 16),
+			button = Color3.fromRGB(33, 33, 37),
+			buttonHover = Color3.fromRGB(44, 44, 49),
+			main = Color3.fromRGB(53, 36, 41),
+			mainHover = Color3.fromRGB(68, 44, 51),
+			mainText = Color3.fromRGB(238, 164, 174),
+			mainEdge = Color3.fromRGB(183, 90, 104),
+			segOn = Color3.fromRGB(44, 44, 49),
+			line = Color3.fromRGB(255, 255, 255),
+			track = Color3.fromRGB(34, 34, 38),
+			bar = Color3.fromRGB(214, 214, 218),
+			scroll = Color3.fromRGB(80, 80, 86),
+			text = Color3.fromRGB(220, 220, 222),
+			bright = Color3.fromRGB(255, 255, 255),
+			label = Color3.fromRGB(170, 170, 176),
+			muted = Color3.fromRGB(118, 118, 124),
+			dim = Color3.fromRGB(98, 98, 104),
+			placeholder = Color3.fromRGB(64, 64, 70),
+			green = Color3.fromRGB(77, 154, 107),
+			okText = Color3.fromRGB(104, 184, 134),
+			red = Color3.fromRGB(229, 83, 61),
+			errText = Color3.fromRGB(236, 120, 96),
+			accent = "#DE8492",
+		},
+		light = {
+			family = builder,
+			page = Color3.fromRGB(243, 243, 244),
+			card = Color3.fromRGB(255, 255, 255),
+			field = Color3.fromRGB(246, 246, 247),
+			button = Color3.fromRGB(240, 240, 242),
+			buttonHover = Color3.fromRGB(228, 228, 231),
+			main = Color3.fromRGB(244, 229, 231),
+			mainHover = Color3.fromRGB(236, 212, 216),
+			mainText = Color3.fromRGB(150, 55, 70),
+			mainEdge = Color3.fromRGB(183, 90, 104),
+			segOn = Color3.fromRGB(228, 228, 231),
+			line = Color3.fromRGB(0, 0, 0),
+			track = Color3.fromRGB(226, 226, 229),
+			bar = Color3.fromRGB(60, 60, 64),
+			scroll = Color3.fromRGB(180, 180, 184),
+			text = Color3.fromRGB(40, 40, 44),
+			bright = Color3.fromRGB(15, 15, 17),
+			label = Color3.fromRGB(90, 90, 96),
+			muted = Color3.fromRGB(105, 105, 111),
+			dim = Color3.fromRGB(135, 135, 141),
+			placeholder = Color3.fromRGB(190, 190, 194),
+			green = Color3.fromRGB(46, 140, 85),
+			okText = Color3.fromRGB(30, 110, 65),
+			red = Color3.fromRGB(210, 70, 50),
+			errText = Color3.fromRGB(180, 50, 35),
+			accent = "#A84A59",
+		},
 	},
-	light = {
-		page = Color3.fromRGB(243, 243, 243),
-		card = Color3.fromRGB(255, 255, 255),
-		field = Color3.fromRGB(246, 246, 246),
-		button = Color3.fromRGB(241, 241, 241),
-		buttonHover = Color3.fromRGB(229, 229, 229),
-		main = Color3.fromRGB(226, 226, 226),
-		mainHover = Color3.fromRGB(212, 212, 212),
-		line = Color3.fromRGB(0, 0, 0),
-		track = Color3.fromRGB(226, 226, 226),
-		scroll = Color3.fromRGB(180, 180, 180),
-		text = Color3.fromRGB(40, 40, 40),
-		bright = Color3.fromRGB(15, 15, 15),
-		label = Color3.fromRGB(90, 90, 90),
-		muted = Color3.fromRGB(105, 105, 105),
-		dim = Color3.fromRGB(135, 135, 135),
-		placeholder = Color3.fromRGB(190, 190, 190),
-		green = Color3.fromRGB(46, 196, 72),
-		okText = Color3.fromRGB(28, 140, 52),
-		red = Color3.fromRGB(220, 50, 62),
-		errText = Color3.fromRGB(190, 40, 55),
-		accent = "#1C8C34",
+	amber = {
+		dark = {
+			family = montserrat,
+			page = Color3.fromRGB(22, 22, 22),
+			card = Color3.fromRGB(28, 30, 32),
+			field = Color3.fromRGB(22, 22, 22),
+			button = Color3.fromRGB(39, 41, 43),
+			buttonHover = Color3.fromRGB(51, 53, 55),
+			main = Color3.fromRGB(233, 162, 59),
+			mainHover = Color3.fromRGB(245, 180, 85),
+			mainText = Color3.fromRGB(28, 20, 7),
+			mainEdge = Color3.fromRGB(233, 162, 59),
+			segOn = Color3.fromRGB(55, 57, 59),
+			line = Color3.fromRGB(255, 255, 255),
+			track = Color3.fromRGB(44, 46, 48),
+			bar = Color3.fromRGB(233, 162, 59),
+			scroll = Color3.fromRGB(90, 90, 90),
+			text = Color3.fromRGB(212, 212, 212),
+			bright = Color3.fromRGB(255, 255, 255),
+			label = Color3.fromRGB(170, 170, 170),
+			muted = Color3.fromRGB(136, 136, 136),
+			dim = Color3.fromRGB(100, 100, 100),
+			placeholder = Color3.fromRGB(64, 64, 64),
+			green = Color3.fromRGB(79, 195, 110),
+			okText = Color3.fromRGB(92, 190, 118),
+			red = Color3.fromRGB(236, 59, 71),
+			errText = Color3.fromRGB(208, 96, 112),
+			accent = "#E8AA50",
+		},
+		light = {
+			family = montserrat,
+			page = Color3.fromRGB(243, 243, 243),
+			card = Color3.fromRGB(255, 255, 255),
+			field = Color3.fromRGB(246, 246, 246),
+			button = Color3.fromRGB(241, 241, 241),
+			buttonHover = Color3.fromRGB(229, 229, 229),
+			main = Color3.fromRGB(233, 162, 59),
+			mainHover = Color3.fromRGB(220, 148, 45),
+			mainText = Color3.fromRGB(28, 20, 7),
+			mainEdge = Color3.fromRGB(200, 135, 40),
+			segOn = Color3.fromRGB(226, 226, 226),
+			line = Color3.fromRGB(0, 0, 0),
+			track = Color3.fromRGB(226, 226, 226),
+			bar = Color3.fromRGB(215, 140, 35),
+			scroll = Color3.fromRGB(180, 180, 180),
+			text = Color3.fromRGB(40, 40, 40),
+			bright = Color3.fromRGB(15, 15, 15),
+			label = Color3.fromRGB(90, 90, 90),
+			muted = Color3.fromRGB(105, 105, 105),
+			dim = Color3.fromRGB(135, 135, 135),
+			placeholder = Color3.fromRGB(190, 190, 190),
+			green = Color3.fromRGB(46, 160, 75),
+			okText = Color3.fromRGB(28, 130, 55),
+			red = Color3.fromRGB(220, 50, 62),
+			errText = Color3.fromRGB(190, 40, 55),
+			accent = "#B87412",
+		},
+	},
+	classic = {
+		dark = {
+			family = montserrat,
+			page = Color3.fromRGB(22, 22, 22),
+			card = Color3.fromRGB(28, 30, 32),
+			field = Color3.fromRGB(22, 22, 22),
+			button = Color3.fromRGB(39, 41, 43),
+			buttonHover = Color3.fromRGB(51, 53, 55),
+			main = Color3.fromRGB(55, 57, 59),
+			mainHover = Color3.fromRGB(69, 71, 73),
+			mainText = Color3.fromRGB(255, 255, 255),
+			mainEdge = Color3.fromRGB(255, 255, 255),
+			segOn = Color3.fromRGB(55, 57, 59),
+			line = Color3.fromRGB(255, 255, 255),
+			track = Color3.fromRGB(44, 46, 48),
+			bar = Color3.fromRGB(59, 234, 87),
+			scroll = Color3.fromRGB(90, 90, 90),
+			text = Color3.fromRGB(212, 212, 212),
+			bright = Color3.fromRGB(255, 255, 255),
+			label = Color3.fromRGB(170, 170, 170),
+			muted = Color3.fromRGB(136, 136, 136),
+			dim = Color3.fromRGB(100, 100, 100),
+			placeholder = Color3.fromRGB(64, 64, 64),
+			green = Color3.fromRGB(59, 234, 87),
+			okText = Color3.fromRGB(59, 186, 87),
+			red = Color3.fromRGB(236, 59, 71),
+			errText = Color3.fromRGB(208, 96, 112),
+			accent = "#3BEA57",
+		},
+		light = {
+			family = montserrat,
+			page = Color3.fromRGB(243, 243, 243),
+			card = Color3.fromRGB(255, 255, 255),
+			field = Color3.fromRGB(246, 246, 246),
+			button = Color3.fromRGB(241, 241, 241),
+			buttonHover = Color3.fromRGB(229, 229, 229),
+			main = Color3.fromRGB(226, 226, 226),
+			mainHover = Color3.fromRGB(212, 212, 212),
+			mainText = Color3.fromRGB(15, 15, 15),
+			mainEdge = Color3.fromRGB(0, 0, 0),
+			segOn = Color3.fromRGB(226, 226, 226),
+			line = Color3.fromRGB(0, 0, 0),
+			track = Color3.fromRGB(226, 226, 226),
+			bar = Color3.fromRGB(46, 196, 72),
+			scroll = Color3.fromRGB(180, 180, 180),
+			text = Color3.fromRGB(40, 40, 40),
+			bright = Color3.fromRGB(15, 15, 15),
+			label = Color3.fromRGB(90, 90, 90),
+			muted = Color3.fromRGB(105, 105, 105),
+			dim = Color3.fromRGB(135, 135, 135),
+			placeholder = Color3.fromRGB(190, 190, 190),
+			green = Color3.fromRGB(46, 196, 72),
+			okText = Color3.fromRGB(28, 140, 52),
+			red = Color3.fromRGB(220, 50, 62),
+			errText = Color3.fromRGB(190, 40, 55),
+			accent = "#1C8C34",
+		},
 	},
 }
 local toned = { "BackgroundColor3", "TextColor3", "ImageColor3", "Color", "PlaceholderColor3", "ScrollBarImageColor3" }
-local palette = palettes.dark
+local appTheme = plugin:GetSetting("rbxyoinkerTheme") or "midnight"
+if not palettes[appTheme] then
+	appTheme = "midnight"
+end
+local palette = palettes[appTheme].dark
 
 local icons = {
 	plug = { "rbxassetid://136111683851629", 525, 800 },
@@ -357,8 +491,9 @@ buttonText.Parent = buttonTemplate
 
 local mainTemplate = buttonTemplate:Clone()
 tone(mainTemplate, { BackgroundColor3 = "main" })
-tone(mainTemplate.Label, { TextColor3 = "bright" })
-tone(mainTemplate.Icon, { ImageColor3 = "bright" })
+tone(mainTemplate.Label, { TextColor3 = "mainText" })
+tone(mainTemplate.Icon, { ImageColor3 = "mainText" })
+tone(mainTemplate.UIStroke, { Color = "mainEdge" })
 mainTemplate.UIStroke.Transparency = 0.82
 
 local function makeHeading(card, icon, label)
@@ -463,7 +598,7 @@ segPadding.Parent = seg
 local segThumb = Instance.new("Frame")
 segThumb.Size = UDim2.fromScale(0.5, 1)
 segThumb.BorderSizePixel = 0
-tone(segThumb, { BackgroundColor3 = "main" })
+tone(segThumb, { BackgroundColor3 = "segOn" })
 segThumb.Parent = seg
 local thumbCorner = Instance.new("UICorner")
 thumbCorner.CornerRadius = UDim.new(0, 4)
@@ -546,7 +681,7 @@ round:Clone().Parent = track
 local fill = Instance.new("Frame")
 fill.Size = UDim2.fromScale(0, 1)
 fill.BorderSizePixel = 0
-tone(fill, { BackgroundColor3 = "green" })
+tone(fill, { BackgroundColor3 = "bar" })
 fill.Parent = track
 round:Clone().Parent = fill
 
@@ -767,8 +902,12 @@ end
 
 local function applyTheme()
 	local background = settings().Studio.Theme:GetColor(Enum.StudioStyleGuideColor.MainBackground)
-	palette = background.R + background.G + background.B > 1.5 and palettes.light or palettes.dark
+	local set = palettes[appTheme]
+	palette = background.R + background.G + background.B > 1.5 and set.light or set.dark
 	for _, inst in widget:GetDescendants() do
+		if (inst:IsA("TextLabel") or inst:IsA("TextButton") or inst:IsA("TextBox")) and inst.FontFace.Family ~= mono.Family then
+			inst.FontFace = Font.new(palette.family, inst.FontFace.Weight)
+		end
 		for _, prop in toned do
 			local key = inst:GetAttribute("Tone" .. prop)
 			if key then
@@ -929,6 +1068,11 @@ local function call(method, path, body, quiet)
 	if typeof(decoded.data) == "table" and decoded.data.version then
 		appVersion = decoded.data.version
 		showVersion()
+	end
+	if typeof(decoded.data) == "table" and palettes[decoded.data.theme] and decoded.data.theme ~= appTheme then
+		appTheme = decoded.data.theme
+		plugin:SetSetting("rbxyoinkerTheme", appTheme)
+		applyTheme()
 	end
 	return decoded.data
 end
