@@ -422,6 +422,19 @@
   .step .t { font-size: 0.82rem; color: rgb(224,224,224); font-weight: 500; }
   .step .s { font-size: 0.72rem; color: rgb(136,136,136); margin-top: 2px; line-height: 1.5; }
   .step .btn { padding: 5px 12px; font-size: 12px; flex-shrink: 0; }
+  .star-card { max-width: 380px; text-align: center; position: relative; padding: 30px 28px 22px; }
+  .star-card .pop-x { position: absolute; top: 10px; right: 10px; }
+  .star-mark { width: 64px; height: 64px; margin: 0 auto; border-radius: 50%; display: flex; align-items: center; justify-content: center;
+    background: rgba(var(--acc-r), 0.14); box-shadow: 0 0 0 1px rgba(var(--acc-r), 0.28), 0 0 40px rgba(var(--acc-r), 0.22); }
+  .star-mark svg { width: 30px; height: 30px; fill: var(--acc-tx); stroke: var(--acc-tx); stroke-width: 1.2; stroke-linejoin: round; animation: star-in 0.6s 0.1s cubic-bezier(0.2, 0.9, 0.3, 1.3) both; }
+  @keyframes star-in { from { transform: scale(0.3) rotate(-40deg); opacity: 0; } to { transform: none; opacity: 1; } }
+  .star-title { margin: 16px 0 0; font-size: 1.05rem; font-weight: 600; color: #fff; }
+  .star-text { margin: 8px 0 0; font-size: 0.82rem; line-height: 1.6; color: rgb(160,160,166); }
+  .star-go { display: inline-flex; align-items: center; justify-content: center; gap: 8px; margin-top: 18px; width: 100%; text-decoration: none; padding: 10px 16px; }
+  .star-go svg.gh { width: 16px; height: 16px; fill: currentColor; stroke: none; }
+  .star-links { margin-top: 12px; font-size: 0.76rem; color: var(--hint); }
+  .star-links a { color: var(--hint); text-decoration: none; }
+  .star-links a:hover { color: rgb(212,212,212); }
   .works { margin-top: 14px; padding-top: 12px; border-top: 1px solid var(--card-border); }
   .works h3 { margin: 0 0 8px; font-size: 0.72rem; font-weight: 600; color: rgb(136,136,136); text-transform: uppercase; letter-spacing: 0.04em; }
   .work { display: flex; align-items: center; gap: 11px; padding: 6px 0; }
@@ -726,7 +739,6 @@
       <header class="page-head" id="page-head"><h1 id="page-title">Home</h1><p id="page-sub"></p></header>
       <p class="banner" id="update-line" style="display:none"></p>
       <p class="banner" id="health-line" style="display:none"></p>
-      <p class="banner" id="star-line" style="display:none">Enjoying rbxyoinker? A star on GitHub helps other people find it. <a href="https://github.com/3vil17/rbxyoinker" target="_blank" id="star-go">Star on GitHub</a> · <a href="#" id="star-no">Don't show again</a></p>
 
       <section id="tab-home" class="tab" style="display:flex">
         <div class="card" id="home-search">
@@ -1199,6 +1211,16 @@
   </div>
 </div>
 
+<div class="modal-bg" id="star-pop" style="display:none">
+  <div class="card modal star-card">
+    <button class="pop-x" id="star-x" title="Close"><i data-i="x"></i></button>
+    <div class="star-mark"><svg viewBox="0 0 24 24"><path d="M11.525 2.295a.53.53 0 0 1 .95 0l2.31 4.679a2.123 2.123 0 0 0 1.595 1.16l5.166.756a.53.53 0 0 1 .294.904l-3.736 3.638a2.123 2.123 0 0 0-.611 1.878l.882 5.14a.53.53 0 0 1-.771.56l-4.618-2.428a2.122 2.122 0 0 0-1.973 0L6.396 21.01a.53.53 0 0 1-.77-.56l.881-5.139a2.122 2.122 0 0 0-.611-1.879L2.16 9.795a.53.53 0 0 1 .294-.906l5.165-.755a2.122 2.122 0 0 0 1.597-1.16z"/></svg></div>
+    <p class="star-title">You've yoinked <span id="star-count">10</span> assets</p>
+    <p class="star-text">rbxyoinker is free, open source and has no ads. A star on GitHub is the only thing that helps other people find it.</p>
+    <a class="btn main star-go" id="star-go" href="https://github.com/3vil17/rbxyoinker" target="_blank"><svg class="gh" viewBox="0 0 24 24"><path d="M12 .297c-6.63 0-12 5.373-12 12 0 5.303 3.438 9.8 8.205 11.385.6.113.82-.258.82-.577 0-.285-.01-1.04-.015-2.04-3.338.724-4.042-1.61-4.042-1.61C4.422 18.07 3.633 17.7 3.633 17.7c-1.087-.744.084-.729.084-.729 1.205.084 1.838 1.236 1.838 1.236 1.07 1.835 2.809 1.305 3.495.998.108-.776.417-1.305.76-1.605-2.665-.3-5.466-1.332-5.466-5.93 0-1.31.465-2.38 1.235-3.22-.135-.303-.54-1.523.105-3.176 0 0 1.005-.322 3.3 1.23.96-.267 1.98-.399 3-.405 1.02.006 2.04.138 3 .405 2.28-1.552 3.285-1.23 3.285-1.23.645 1.653.24 2.873.12 3.176.765.84 1.23 1.91 1.23 3.22 0 4.61-2.805 5.625-5.475 5.92.42.36.81 1.096.81 2.22 0 1.606-.015 2.896-.015 3.286 0 .315.21.69.825.57C20.565 22.092 24 17.592 24 12.297c0-6.627-5.373-12-12-12"/></svg>Star on GitHub</a>
+    <div class="star-links"><a href="#" id="star-later">Maybe later</a> · <a href="#" id="star-no">Don't ask again</a></div>
+  </div>
+</div>
 <div class="modal-bg" id="changes" style="display:none">
   <div class="card modal">
     <div class="titlebar">
@@ -2666,6 +2688,7 @@ document.addEventListener("keydown", (e) => {
   if (e.key !== "Escape") return;
   if ($("#ask").style.display === "flex") $("#ask-no").click();
   else if ($("#studio-pop").style.display === "flex") closeStudio();
+  else if ($("#star-pop").style.display === "flex") starClose(false);
   else if ($("#changes").style.display === "flex") $("#changes-ok").click();
 });
 document.addEventListener("keydown", (e) => {
@@ -2828,13 +2851,32 @@ async function loadSetup() {
 }
 loadSetup();
 function countDownloads(n) {
-  let seen = 0, off = false;
-  try { off = localStorage.getItem("ryk_star") === "off"; seen = parseInt(localStorage.getItem("ryk_dls") || "0", 10) + n; localStorage.setItem("ryk_dls", String(seen)); } catch (e) { return; }
-  if (!off && seen >= 10) $("#star-line").style.display = "";
+  let seen = 0, next = 10;
+  try {
+    if (localStorage.getItem("ryk_star") === "off") return;
+    seen = parseInt(localStorage.getItem("ryk_dls") || "0", 10) + n;
+    next = parseInt(localStorage.getItem("ryk_star_next") || "10", 10);
+    localStorage.setItem("ryk_dls", String(seen));
+  } catch (e) { return; }
+  if (seen < next || $("#star-pop").style.display === "flex") return;
+  api("/api/history").then((h) => {
+    const total = Math.max(seen, h.ok ? h.data.length : 0);
+    $("#star-count").textContent = total >= 200 ? "200+" : String(total);
+    setTimeout(() => { if (!document.querySelector(".modal-bg[style*='flex']")) $("#star-pop").style.display = "flex"; }, 500);
+  });
 }
-function starOff() { $("#star-line").style.display = "none"; try { localStorage.setItem("ryk_star", "off"); } catch (e) {} }
-$("#star-go").addEventListener("click", starOff);
-$("#star-no").onclick = (e) => { e.preventDefault(); starOff(); };
+function starClose(off) {
+  $("#star-pop").style.display = "none";
+  try {
+    if (off) localStorage.setItem("ryk_star", "off");
+    else localStorage.setItem("ryk_star_next", String(parseInt(localStorage.getItem("ryk_dls") || "0", 10) + 50));
+  } catch (e) {}
+}
+$("#star-go").addEventListener("click", () => starClose(true));
+$("#star-no").onclick = (e) => { e.preventDefault(); starClose(true); };
+$("#star-later").onclick = (e) => { e.preventDefault(); starClose(false); };
+$("#star-x").onclick = () => starClose(false);
+$("#star-pop").addEventListener("mousedown", (e) => { if (e.target.id === "star-pop") starClose(false); });
 $("#report-link").onclick = (e) => { e.preventDefault(); window.open(reportUrl(null, { where: "Sidebar" }), "_blank"); };
 $("#quit-link").onclick = async (e) => {
   e.preventDefault();
